@@ -68,39 +68,59 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Automatically ensures the user belongs to at least one research group
+  // Automatically ensures the user belongs to the shared research group
   const ensureUserGroup = async (userId) => {
     try {
       setLoading(true);
-      // Check if user is a member of any group
-      const { data: memberships, error: memErr } = await supabase
-        .from('group_members')
-        .select('group_id')
-        .eq('user_id', userId);
+      const sharedInviteCode = 'LOCUS-SHARED';
 
-      if (memErr) throw memErr;
+      // 1. Try to find the shared group
+      let { data: sharedGroup, error: findErr } = await supabase
+        .from('groups')
+        .select('id')
+        .eq('invite_code', sharedInviteCode)
+        .maybeSingle();
 
-      if (memberships && memberships.length > 0) {
-        setGroupId(memberships[0].group_id);
-      } else {
-        // User is not in any group. Create a default group.
-        const defaultInviteCode = `HUB-${Math.floor(1000 + Math.random() * 9000)}`;
-        
-        // Insert group (trigger handles owner insertion in group_members automatically!)
-        const { data: group, error: groupErr } = await supabase
+      if (findErr) throw findErr;
+
+      if (!sharedGroup) {
+        // Shared group doesn't exist yet (first user). Create it.
+        const { data: newGroup, error: createErr } = await supabase
           .from('groups')
           .insert({
-            name: 'Scholars Collective',
-            invite_code: defaultInviteCode,
+            name: 'Locus Scholars',
+            invite_code: sharedInviteCode,
             created_by: userId
           })
           .select()
           .single();
 
-        if (groupErr) throw groupErr;
-
-        setGroupId(group.id);
+        if (createErr) throw createErr;
+        sharedGroup = newGroup;
       }
+
+      // 2. Check if user is already a member of this shared group
+      const { data: memberships, error: memErr } = await supabase
+        .from('group_members')
+        .select('group_id')
+        .eq('group_id', sharedGroup.id)
+        .eq('user_id', userId);
+
+      if (memErr) throw memErr;
+
+      if (!memberships || memberships.length === 0) {
+        // User is not in the shared group. Join them as a member.
+        const { error: joinErr } = await supabase
+          .from('group_members')
+          .insert({
+            group_id: sharedGroup.id,
+            user_id: userId,
+            role: 'member'
+          });
+        if (joinErr) throw joinErr;
+      }
+
+      setGroupId(sharedGroup.id);
     } catch (err) {
       console.error('Error ensuring group membership:', err);
     } finally {
