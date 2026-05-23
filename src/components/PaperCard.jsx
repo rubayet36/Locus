@@ -270,7 +270,9 @@ export default function PaperCard({
                       onMouseOver={(e) => e.target.style.backgroundColor = 'rgba(255,255,255,0.05)'}
                       onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
                     >
-                      {member.user_id === currentUserId ? 'You' : member.email || 'Group Colleague'}
+                      {member.user_id === currentUserId 
+                        ? `${member.fullName || 'You'} (You)` 
+                        : member.fullName || member.email || 'Group Colleague'}
                     </button>
                   ))}
                 </div>

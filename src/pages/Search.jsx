@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { lookupPaperMetadata } from '../lib/rankLookup';
 import PaperCard from '../components/PaperCard';
@@ -17,6 +17,70 @@ export default function Search({ currentUserId, groupId }) {
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
   const [saved, setSaved] = useState(false);
+  const [groupMembers, setGroupMembers] = useState([]);
+
+  // Fetch group members for name resolution inside PaperCard
+  const fetchMembers = async () => {
+    if (!groupId) return;
+    try {
+      const { data: membersData } = await supabase
+        .from('group_members')
+        .select('user_id, role, email, full_name, avatar_url')
+        .eq('group_id', groupId);
+
+      const formattedMembers = (membersData || []).map(member => {
+        const handle = member.email ? member.email.split('@')[0] : 'Scholar';
+        const defaultName = handle.charAt(0).toUpperCase() + handle.slice(1);
+        return {
+          ...member,
+          email: member.email || 'scholar@locus.edu',
+          fullName: member.full_name || defaultName
+        };
+      });
+      setGroupMembers(formattedMembers);
+    } catch (err) {
+      console.error('Error fetching group members in Search:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchMembers();
+  }, [groupId]);
+
+  // Fetch fully qualified paper details from the DB
+  const fetchSavedPaperDetails = async (paperId) => {
+    try {
+      const { data: fullPaper } = await supabase
+        .from('papers')
+        .select(`
+          *,
+          paper_meta (
+            venue_name,
+            issn,
+            sjr_rank,
+            sjr_quartile,
+            core_rank,
+            h_index
+          ),
+          reading_claims (
+            user_id,
+            status
+          ),
+          assignments (
+            assigned_to,
+            status
+          )
+        `)
+        .eq('id', paperId)
+        .single();
+      
+      if (fullPaper) {
+        setResult(fullPaper);
+      }
+    } catch (err) {
+      console.error('Error fetching paper details:', err);
+    }
+  };
 
   const handleSearch = async (searchQuery = query) => {
     if (!searchQuery.trim()) return;
@@ -30,19 +94,28 @@ export default function Search({ currentUserId, groupId }) {
       const data = await lookupPaperMetadata(searchQuery);
       setResult(data);
       
-      // Check if this paper is already saved in this group library
-      if (data.doi) {
-        const { data: existing, error: existErr } = await supabase
+      // Perform case-insensitive, fuzzy DOI & title match checks client-side against all group papers
+      if (data.doi || data.title) {
+        const { data: existingPapers } = await supabase
           .from('papers')
-          .select('id')
-          .eq('group_id', groupId)
-          .eq('doi', data.doi)
-          .maybeSingle();
+          .select('id, title, doi')
+          .eq('group_id', groupId);
 
-        if (existing) {
-          setSaved(true);
-          // Set ID on result so ClaimButton can use it
-          data.id = existing.id;
+        if (existingPapers) {
+          const match = existingPapers.find(p => {
+            const doiMatch = p.doi && data.doi && p.doi.trim().toLowerCase() === data.doi.trim().toLowerCase();
+            const titleMatch = p.title && data.title && (
+              p.title.trim().toLowerCase().includes(data.title.trim().toLowerCase()) ||
+              data.title.trim().toLowerCase().includes(p.title.trim().toLowerCase())
+            );
+            return doiMatch || titleMatch;
+          });
+
+          if (match) {
+            setSaved(true);
+            // Fetch complete stored details including assignments and claims
+            await fetchSavedPaperDetails(match.id);
+          }
         }
       }
     } catch (err) {
@@ -104,12 +177,48 @@ export default function Search({ currentUserId, groupId }) {
       if (logErr) throw logErr;
 
       setSaved(true);
-      // Update result state with the newly inserted DB id
-      setResult(prev => ({ ...prev, id: paper.id }));
+      // Fetch full saved paper details to populate added_by, empty claims, assignments structure
+      await fetchSavedPaperDetails(paper.id);
 
     } catch (err) {
       console.error('Error saving paper:', err);
       alert('Failed to save paper to group library: ' + err.message);
+    }
+  };
+
+  const handleAssign = async (paperOrId, assignedToId) => {
+    const paperId = typeof paperOrId === 'object' ? paperOrId.id : paperOrId;
+    if (!paperId) return;
+    try {
+      const { error } = await supabase
+        .from('assignments')
+        .insert({
+          paper_id: paperId,
+          assigned_to: assignedToId,
+          assigned_by: currentUserId,
+          status: 'unread'
+        });
+
+      if (error) throw error;
+      
+      await supabase.from('activity_log').insert({
+        group_id: groupId,
+        paper_id: paperId,
+        user_id: currentUserId,
+        action: 'assigned'
+      });
+
+      alert('Paper assigned successfully!');
+      await fetchSavedPaperDetails(paperId);
+    } catch (err) {
+      console.error('Error assigning paper:', err);
+      alert('Failed to assign paper: ' + err.message);
+    }
+  };
+
+  const handleClaimChange = () => {
+    if (result && result.id) {
+      fetchSavedPaperDetails(result.id);
     }
   };
 
@@ -242,6 +351,9 @@ export default function Search({ currentUserId, groupId }) {
             saved={saved} 
             onSave={handleSaveToLibrary}
             currentUserId={currentUserId}
+            groupMembers={groupMembers}
+            onAssign={handleAssign}
+            onClaimChange={handleClaimChange}
           />
         </div>
       )}
