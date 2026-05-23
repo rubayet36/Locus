@@ -1,0 +1,37 @@
+**Fonts**
+
+- **Playfair Display** (900 weight) — headings, logo, h1
+- **DM Mono** (400/500) — all metadata, labels, controls, badges, nav links
+- **Crimson Pro** (400/600, with italic) — body font, base document font
+
+---
+
+**Colors**
+
+| Role | Value |
+|---|---|
+| Page background | `#08070a` |
+| Background gradient tint | `rgba(184,134,11,0.08)` |
+| Card background | `rgba(16,14,20,0.92)` |
+| Primary text | `#f1ede4` |
+| Secondary text | `#94a3b8` |
+| Muted text | `#64748b` |
+| Faint text / hints | `#475569` |
+| Ghost text | `#334155` |
+| Accent gold (primary) | `#e8a946` |
+| Accent gold (dark) | `#b8860b` |
+| Card border | `rgba(255,255,255,0.07)` |
+| Card hover border | `rgba(232,169,70,0.2)` |
+
+**Rank badge colors**
+
+| Rank | Background | Border | Text |
+|---|---|---|---|
+| Q1 | `#0f3d2a` | `#22c55e` | `#4ade80` |
+| Q2 | `#1a3a1a` | `#84cc16` | `#a3e635` |
+| Q3 | `#3a2e0a` | `#eab308` | `#fbbf24` |
+| Q4 | `#3a1a0a` | `#f97316` | `#fb923c` |
+| A* | `#1a0a3a` | `#a855f7` | `#c084fc` |
+| A | `#0d1a3a` | `#60a5fa` | `#93c5fd` |
+| B | `#1a1a1a` | `#9ca3af` | `#d1d5db` |
+| C | `#2a1a0a` | `#d97706` | `#fcd34d` |

@@ -1,0 +1,70 @@
+Tech stack
+React + Vite for the frontend, Supabase for everything backend (auth, database, realtime, edge functions, file storage).
+
+Database schema (Postgres in Supabase)
+sql-- Core tables
+papers (id, title, doi, url, abstract, authors[], year, added_by, created_at)
+paper_meta (paper_id, venue_name, issn, sjr_rank, sjr_quartile, core_rank, h_index, cached_at)
+groups (id, name, invite_code, created_by)
+group_members (group_id, user_id, role)  -- role: owner | member
+
+-- Collaboration tables
+comments (id, paper_id, user_id, body, parent_id, created_at)  -- parent_id for threads
+assignments (id, paper_id, assigned_to, assigned_by, due_date, note, status)
+reading_claims (id, paper_id, user_id, status)  -- status: reading | done | dropped
+tags (id, paper_id, label, color, created_by)
+activity_log (id, paper_id, user_id, action, meta, created_at)  -- feed source
+Enable Row Level Security on every table so users only see papers in their group.
+
+Supabase Edge Functions
+You need three main edge functions (these call external APIs from the server side):
+/lookup-paper — takes a DOI, URL, or title → calls Crossref API to get the ISSN and venue name → then calls Scimago (SJR) for journal rank, or CORE API for conference rank → returns a combined metadata object.
+/check-access — takes a DOI → tries the publisher URL → if paywalled or 404, returns a Sci-Hub fallback link (https://sci-hub.se/{doi}).
+/notify-assignment — sends an email via Supabase's built-in email when a paper is assigned to someone.
+
+Key API endpoints to integrate
+ServiceWhat it givesHow to callCrossrefDOI → ISSN, journal name, authorsapi.crossref.org/works/{doi} — free, no keyScimago (SJR)ISSN → Q1–Q4 quartile, H-indexScrape scimagojr.com/journalsearch.php?q={issn} — no official APICORE APIConference/journal rank A*/A/B/Capi.core.ac.uk — free key availableSemantic ScholarFuzzy title searchapi.semanticscholar.org/graph/v1/paper/searchSci-HubPDF fallbacksci-hub.se/{doi} — just construct the URL
+
+Frontend pages
+Dashboard — activity feed showing who added/claimed/commented on what, recent papers.
+Paper Search — a search bar accepting DOI, URL, or title. Shows a result card with rank badge (Q1 / A* etc.), abstract, authors, and buttons: Save to library, Assign to someone, Claim for reading, Open PDF.
+Library — grid/table of all papers your group has saved. Filterable by rank, status, tags, who's reading it.
+Reading Room — paper detail page with the PDF embedded (or Sci-Hub link), threaded comments on the side (realtime via Supabase subscriptions).
+Assignments — Kanban-style board: Unread → Reading → Done. Shows who is reading what with a lock badge to prevent duplicates.
+
+Folder structure
+src/
+  pages/
+    Dashboard.jsx
+    Search.jsx
+    Library.jsx
+    Paper.jsx        ← reading room
+    Assignments.jsx
+  components/
+    PaperCard.jsx    ← rank badge + actions
+    CommentThread.jsx
+    RankBadge.jsx    ← Q1 / A* / A / B styled pill
+    ClaimButton.jsx  ← locks paper for reading
+  hooks/
+    usePaper.js      ← fetch + cache paper metadata
+    useRealtime.js   ← subscribe to comments/claims
+  lib/
+    supabase.js      ← client init
+    rankLookup.js    ← calls edge function
+supabase/
+  functions/
+    lookup-paper/
+    check-access/
+    notify-assignment/
+  migrations/
+    001_schema.sql
+
+How the rank lookup flow works in practice
+
+User pastes https://doi.org/10.1016/j.pragma.2011.10.004
+Frontend strips the DOI → 10.1016/j.pragma.2011.10.004
+Calls edge function /lookup-paper?doi=...
+Edge function hits Crossref → gets ISSN 0378-2166, journal Journal of Pragmatics
+Hits Scimago with ISSN → gets Q1, H-index 82
+Caches result in paper_meta table (so the same paper isn't re-fetched)
+Returns to frontend → shows a green Q1 badge
