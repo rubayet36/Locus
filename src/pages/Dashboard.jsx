@@ -40,18 +40,74 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
       if (papersErr) throw papersErr;
       setRecentPapers(papers || []);
 
-      // 3. Fetch active reading claims
-      const { data: claims, error: claimsErr } = await supabase
-        .from('reading_claims')
-        .select(`
-          *,
-          papers (title, id)
-        `)
-        .eq('status', 'reading')
-        .limit(5);
+      // 3. Fetch active reading claims from reading_claims AND assignments
+      const [claimsRes, assignsRes, membersRes] = await Promise.all([
+        supabase
+          .from('reading_claims')
+          .select(`
+            *,
+            papers (title, id)
+          `)
+          .eq('status', 'reading'),
+        supabase
+          .from('assignments')
+          .select(`
+            *,
+            papers (title, id)
+          `)
+          .eq('status', 'reading'),
+        groupId ? supabase
+          .from('group_members')
+          .select('user_id, email')
+          .eq('group_id', groupId) : Promise.resolve({ data: [] })
+      ]);
 
-      if (claimsErr) throw claimsErr;
-      setActiveClaims(claims || []);
+      if (claimsRes.error) throw claimsRes.error;
+      if (assignsRes.error) throw assignsRes.error;
+
+      const claims = claimsRes.data || [];
+      const assigns = assignsRes.data || [];
+      const members = membersRes.data || [];
+
+      // Helper to extract a display name from member email or fallback
+      const getDisplayName = (uid) => {
+        if (uid === currentUserId) return 'You';
+        const member = members.find(m => m.user_id === uid);
+        if (member && member.email) {
+          const handle = member.email.split('@')[0];
+          return handle.charAt(0).toUpperCase() + handle.slice(1);
+        }
+        return 'Team Scholar';
+      };
+
+      const unifiedClaims = [];
+      const paperIds = new Set();
+
+      claims.forEach(c => {
+        if (c.papers) {
+          paperIds.add(c.papers.id);
+          unifiedClaims.push({
+            id: c.id,
+            paperId: c.papers.id,
+            title: c.papers.title,
+            readerName: getDisplayName(c.user_id)
+          });
+        }
+      });
+
+      assigns.forEach(a => {
+        if (a.papers && !paperIds.has(a.papers.id)) {
+          paperIds.add(a.papers.id);
+          unifiedClaims.push({
+            id: a.id,
+            paperId: a.papers.id,
+            title: a.papers.title,
+            readerName: getDisplayName(a.assigned_to)
+          });
+        }
+      });
+
+      setActiveClaims(unifiedClaims);
 
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
@@ -63,12 +119,26 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
   useEffect(() => {
     fetchDashboardData();
 
-    // Live subscription to activity_log
+    // Live subscription to activity_log, reading_claims and assignments
     const channel = supabase
       .channel('dashboard-feed')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'activity_log' },
+        { event: '*', schema: 'public', table: 'activity_log' },
+        () => {
+          fetchDashboardData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'reading_claims' },
+        () => {
+          fetchDashboardData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'assignments' },
         () => {
           fetchDashboardData();
         }
@@ -241,7 +311,7 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
                 {activeClaims.map(claim => (
                   <div 
                     key={claim.id} 
-                    onClick={() => onNavigate('paper', claim.papers?.id)}
+                    onClick={() => onNavigate('paper', claim.paperId)}
                     style={{ 
                       display: 'flex', 
                       alignItems: 'center', 
@@ -265,7 +335,7 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
                         whiteSpace: 'nowrap', 
                         overflow: 'hidden' 
                       }}>
-                        {claim.papers?.title}
+                        <span style={{ color: 'var(--accent-gold)' }}>{claim.readerName}</span> is reading <span style={{ color: 'var(--text-primary)', fontWeight: '500' }}>"{claim.title}"</span>
                       </p>
                     </div>
                     <span className="rank-badge" style={{ backgroundColor: '#0d1a3a', borderColor: '#60a5fa', color: '#93c5fd', fontSize: '9px', padding: '2px 6px' }}>

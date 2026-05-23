@@ -10,6 +10,13 @@ export default function Profile({ currentUserId, currentUserEmail, groupId, onNa
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(true);
 
+  // Sync selectedUserId with currentUserId when prop resolves
+  useEffect(() => {
+    if (currentUserId) {
+      setSelectedUserId(currentUserId);
+    }
+  }, [currentUserId]);
+
   // Fetch all research group members
   useEffect(() => {
     const fetchMembers = async () => {
@@ -59,6 +66,7 @@ export default function Profile({ currentUserId, currentUserEmail, groupId, onNa
       if (!selectedUserId) return;
       try {
         setProfileLoading(true);
+        console.log('[Profile] Fetching claims & assignments for user:', selectedUserId);
 
         // 1. Fetch reading claims
         const { data: claimsData, error: claimsErr } = await supabase
@@ -79,6 +87,7 @@ export default function Profile({ currentUserId, currentUserEmail, groupId, onNa
           .eq('user_id', selectedUserId);
 
         if (claimsErr) throw claimsErr;
+        console.log('[Profile] Claims fetched:', claimsData?.length, claimsData);
 
         // 2. Fetch assignments
         const { data: assignsData, error: assignsErr } = await supabase
@@ -99,6 +108,7 @@ export default function Profile({ currentUserId, currentUserEmail, groupId, onNa
           .eq('assigned_to', selectedUserId);
 
         if (assignsErr) throw assignsErr;
+        console.log('[Profile] Assignments fetched:', assignsData?.length, assignsData);
 
         // 3. Consolidate duplicates and merge
         const unified = [];
@@ -135,6 +145,7 @@ export default function Profile({ currentUserId, currentUserEmail, groupId, onNa
           }
         });
 
+        console.log('[Profile] Consolidated unified list:', unified);
         setClaims(unified);
       } catch (err) {
         console.error('Error fetching reading history:', err);
@@ -145,6 +156,31 @@ export default function Profile({ currentUserId, currentUserEmail, groupId, onNa
     };
 
     fetchClaims();
+
+    // Subscribe to changes on assignments & reading_claims for real-time responsiveness
+    const channel = supabase
+      .channel(`profile-sync-${selectedUserId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'reading_claims' },
+        () => {
+          console.log('[Profile] Realtime event on reading_claims, re-fetching...');
+          fetchClaims();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'assignments' },
+        () => {
+          console.log('[Profile] Realtime event on assignments, re-fetching...');
+          fetchClaims();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [selectedUserId]);
 
   const activeClaims = claims.filter(c => c.status === 'reading');

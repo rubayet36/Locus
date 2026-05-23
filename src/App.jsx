@@ -115,9 +115,17 @@ export default function App() {
           .insert({
             group_id: sharedGroup.id,
             user_id: userId,
-            role: 'member'
+            role: 'member',
+            email: session?.user?.email
           });
         if (joinErr) throw joinErr;
+      } else {
+        // Update user email in group_members to keep it in sync
+        await supabase
+          .from('group_members')
+          .update({ email: session?.user?.email })
+          .eq('group_id', sharedGroup.id)
+          .eq('user_id', userId);
       }
 
       setGroupId(sharedGroup.id);
