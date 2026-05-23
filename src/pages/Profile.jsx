@@ -53,13 +53,15 @@ export default function Profile({ currentUserId, currentUserEmail, groupId, onNa
     fetchMembers();
   }, [groupId]);
 
-  // Fetch reading claims (reading + completed) for the selected user
+  // Fetch reading claims (reading + completed) and assignments for the selected user
   useEffect(() => {
     const fetchClaims = async () => {
       if (!selectedUserId) return;
       try {
         setProfileLoading(true);
-        const { data, error } = await supabase
+
+        // 1. Fetch reading claims
+        const { data: claimsData, error: claimsErr } = await supabase
           .from('reading_claims')
           .select(`
             *,
@@ -76,10 +78,66 @@ export default function Profile({ currentUserId, currentUserEmail, groupId, onNa
           `)
           .eq('user_id', selectedUserId);
 
-        if (error) throw error;
-        setClaims(data || []);
+        if (claimsErr) throw claimsErr;
+
+        // 2. Fetch assignments
+        const { data: assignsData, error: assignsErr } = await supabase
+          .from('assignments')
+          .select(`
+            *,
+            papers (
+              id,
+              title,
+              year,
+              paper_meta (
+                venue_name,
+                sjr_quartile,
+                core_rank
+              )
+            )
+          `)
+          .eq('assigned_to', selectedUserId);
+
+        if (assignsErr) throw assignsErr;
+
+        // 3. Consolidate duplicates and merge
+        const unified = [];
+        const paperIds = new Set();
+
+        (claimsData || []).forEach(claim => {
+          if (claim.papers) {
+            paperIds.add(claim.papers.id);
+            unified.push({
+              id: claim.id,
+              status: claim.status,
+              papers: claim.papers
+            });
+          }
+        });
+
+        (assignsData || []).forEach(assign => {
+          if (assign.papers && !paperIds.has(assign.papers.id)) {
+            paperIds.add(assign.papers.id);
+            if (assign.status === 'reading' || assign.status === 'done') {
+              unified.push({
+                id: assign.id,
+                status: assign.status,
+                papers: assign.papers
+              });
+            }
+          } else if (assign.papers && paperIds.has(assign.papers.id)) {
+            if (assign.status === 'done') {
+              const existing = unified.find(u => u.papers.id === assign.papers.id);
+              if (existing) {
+                existing.status = 'done';
+              }
+            }
+          }
+        });
+
+        setClaims(unified);
       } catch (err) {
-        console.error('Error fetching reading claims:', err);
+        console.error('Error fetching reading history:', err);
       } finally {
         setProfileLoading(false);
         setLoading(false);
