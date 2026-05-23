@@ -98,6 +98,7 @@ a:hover {
   padding: 40px;
   max-width: 1400px;
   margin: 0 auto;
+  margin-left: var(--sidebar-width);
   width: calc(100% - var(--sidebar-width));
   min-height: 100vh;
   display: flex;
@@ -113,7 +114,8 @@ a:hover {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  position: sticky;
+  position: fixed;
+  left: 0;
   top: 0;
   z-index: 100;
 }
@@ -546,8 +548,9 @@ a:hover {
   }
 
   .main-content {
-    width: 100%;
+    width: 100% !important;
     padding: 24px 16px;
+    margin-left: 0 !important;
   }
 
   .kanban-board {
