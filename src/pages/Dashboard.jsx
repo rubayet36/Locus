@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Activity, Plus, BookOpen, MessageSquare, User, AlertCircle, FileText, ArrowRight } from 'lucide-react';
+import { Activity, Plus, BookOpen, MessageSquare, User, AlertCircle, FileText, ArrowRight, Award } from 'lucide-react';
 import RankBadge from '../components/RankBadge';
 
 export default function Dashboard({ currentUserId, groupId, onNavigate }) {
   const [activities, setActivities] = useState([]);
   const [recentPapers, setRecentPapers] = useState([]);
   const [activeClaims, setActiveClaims] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [stats, setStats] = useState({ totalSaved: 0, totalRead: 0, scholarStats: [] });
   const [loading, setLoading] = useState(true);
 
   const fetchDashboardData = async () => {
@@ -40,8 +42,8 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
       if (papersErr) throw papersErr;
       setRecentPapers(papers || []);
 
-      // 3. Fetch active reading claims from reading_claims AND assignments
-      const [claimsRes, assignsRes, membersRes] = await Promise.all([
+      // 3. Fetch active reading claims, assignments, group members, and finished stats in parallel
+      const [claimsRes, assignsRes, membersRes, doneClaimsRes, doneAssignsRes, papersCountRes] = await Promise.all([
         supabase
           .from('reading_claims')
           .select(`
@@ -56,23 +58,43 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
             papers (title, id)
           `)
           .eq('status', 'reading'),
-        groupId ? supabase
+        supabase
           .from('group_members')
-          .select('user_id, email')
-          .eq('group_id', groupId) : Promise.resolve({ data: [] })
+          .select('user_id, role, email')
+          .eq('group_id', groupId),
+        supabase
+          .from('reading_claims')
+          .select('paper_id, user_id')
+          .eq('status', 'done'),
+        supabase
+          .from('assignments')
+          .select('paper_id, assigned_to')
+          .eq('status', 'done'),
+        supabase
+          .from('papers')
+          .select('*', { count: 'exact', head: true })
       ]);
 
       if (claimsRes.error) throw claimsRes.error;
       if (assignsRes.error) throw assignsRes.error;
+      if (membersRes.error) throw membersRes.error;
+      if (doneClaimsRes.error) throw doneClaimsRes.error;
+      if (doneAssignsRes.error) throw doneAssignsRes.error;
+      if (papersCountRes.error) throw papersCountRes.error;
 
       const claims = claimsRes.data || [];
       const assigns = assignsRes.data || [];
-      const members = membersRes.data || [];
+      const dbMembers = membersRes.data || [];
+      const doneClaims = doneClaimsRes.data || [];
+      const doneAssigns = doneAssignsRes.data || [];
+      const totalSavedCount = papersCountRes.count || 0;
+
+      setMembers(dbMembers);
 
       // Helper to extract a display name from member email or fallback
       const getDisplayName = (uid) => {
         if (uid === currentUserId) return 'You';
-        const member = members.find(m => m.user_id === uid);
+        const member = dbMembers.find(m => m.user_id === uid);
         if (member && member.email) {
           const handle = member.email.split('@')[0];
           return handle.charAt(0).toUpperCase() + handle.slice(1);
@@ -80,12 +102,13 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
         return 'Team Scholar';
       };
 
+      // 4. Calculate Unified Active Claims
       const unifiedClaims = [];
-      const paperIds = new Set();
+      const activePaperIds = new Set();
 
       claims.forEach(c => {
         if (c.papers) {
-          paperIds.add(c.papers.id);
+          activePaperIds.add(c.papers.id);
           unifiedClaims.push({
             id: c.id,
             paperId: c.papers.id,
@@ -96,8 +119,8 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
       });
 
       assigns.forEach(a => {
-        if (a.papers && !paperIds.has(a.papers.id)) {
-          paperIds.add(a.papers.id);
+        if (a.papers && !activePaperIds.has(a.papers.id)) {
+          activePaperIds.add(a.papers.id);
           unifiedClaims.push({
             id: a.id,
             paperId: a.papers.id,
@@ -108,6 +131,44 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
       });
 
       setActiveClaims(unifiedClaims);
+
+      // 5. Calculate Statistics (Total Read, Scholar read counts)
+      const userReadSet = {};
+      const uniqueReadPapers = new Set();
+
+      doneClaims.forEach(c => {
+        uniqueReadPapers.add(c.paper_id);
+        if (!userReadSet[c.user_id]) userReadSet[c.user_id] = new Set();
+        userReadSet[c.user_id].add(c.paper_id);
+      });
+
+      doneAssigns.forEach(a => {
+        uniqueReadPapers.add(a.paper_id);
+        if (!userReadSet[a.assigned_to]) userReadSet[a.assigned_to] = new Set();
+        userReadSet[a.assigned_to].add(a.paper_id);
+      });
+
+      const totalReadCount = uniqueReadPapers.size;
+
+      const scholarStats = dbMembers.map(m => {
+        const readSet = userReadSet[m.user_id] || new Set();
+        const handle = m.email ? m.email.split('@')[0] : 'Scholar';
+        const name = m.user_id === currentUserId 
+          ? 'You' 
+          : handle.charAt(0).toUpperCase() + handle.slice(1);
+        return {
+          userId: m.user_id,
+          name,
+          email: m.email || '',
+          count: readSet.size
+        };
+      }).sort((a, b) => b.count - a.count);
+
+      setStats({
+        totalSaved: totalSavedCount,
+        totalRead: totalReadCount,
+        scholarStats
+      });
 
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
@@ -158,10 +219,12 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
     // Stable pseudo-name mapping for researchers
     const getPseudoName = (uid) => {
       if (uid === currentUserId) return 'You';
-      const firstNames = ['Dr. Sarah', 'Prof. Alex', 'Dr. Elena', 'Dr. Marcus', 'Prof. Clara'];
-      const lastNames = ['Chen', 'Smith', 'Vasiliev', 'Adebayo', 'Gomez'];
-      const hash = uid.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-      return `${firstNames[hash % firstNames.length]} ${lastNames[hash % lastNames.length]}`;
+      const member = members.find(m => m.user_id === uid);
+      if (member && member.email) {
+        const handle = member.email.split('@')[0];
+        return handle.charAt(0).toUpperCase() + handle.slice(1);
+      }
+      return 'Team Scholar';
     };
 
     const userName = getPseudoName(act.user_id);
@@ -235,6 +298,70 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
         </p>
       </div>
 
+      {/* Statistics Row */}
+      {loading ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+          <div className="card" style={{ height: '110px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span className="mono" style={{ color: 'var(--text-muted)' }}>Calculating stats...</span>
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+          {/* Stat 1: Total Saved Papers */}
+          <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '20px', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid var(--card-border)' }}>
+            <div style={{ background: 'rgba(232, 169, 70, 0.1)', border: '1px solid var(--accent-gold)', borderRadius: '12px', padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <FileText size={28} style={{ color: 'var(--accent-gold)' }} />
+            </div>
+            <div>
+              <span className="mono" style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Library Volume</span>
+              <h2 style={{ fontSize: '36px', fontWeight: 'bold', margin: '4px 0 2px 0', color: 'var(--text-primary)', fontFamily: 'var(--font-headings)' }}>{stats.totalSaved}</h2>
+              <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>Total papers added by team</p>
+            </div>
+          </div>
+
+          {/* Stat 2: Total Read Papers */}
+          <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '20px', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid var(--card-border)' }}>
+            <div style={{ background: 'rgba(74, 222, 128, 0.1)', border: '1px solid #4ade80', borderRadius: '12px', padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <BookOpen size={28} style={{ color: '#4ade80' }} />
+            </div>
+            <div>
+              <span className="mono" style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Research Progress</span>
+              <h2 style={{ fontSize: '36px', fontWeight: 'bold', margin: '4px 0 2px 0', color: '#4ade80', fontFamily: 'var(--font-headings)' }}>{stats.totalRead}</h2>
+              <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>Completed literature reviews</p>
+            </div>
+          </div>
+
+          {/* Stat 3: Scholar Contributions list */}
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid var(--card-border)', justifySelf: 'stretch' }}>
+            <span className="mono" style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Award size={14} style={{ color: 'var(--accent-gold)' }} /> Scholar Achievements
+            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', maxHeight: '72px', paddingRight: '4px' }}>
+              {stats.scholarStats.length === 0 ? (
+                <span className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>No scholars listed</span>
+              ) : (
+                stats.scholarStats.map((scholar, idx) => (
+                  <div key={scholar.userId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
+                    <span style={{ color: scholar.name === 'You' ? 'var(--accent-gold)' : 'var(--text-secondary)', fontWeight: scholar.name === 'You' ? 'bold' : 'normal' }}>
+                      {scholar.name}
+                    </span>
+                    <span className="rank-badge" style={{ 
+                      fontSize: '9px', 
+                      padding: '2px 8px', 
+                      backgroundColor: scholar.count > 0 ? 'rgba(74, 222, 128, 0.1)' : 'rgba(255,255,255,0.02)',
+                      borderColor: scholar.count > 0 ? '#4ade80' : 'rgba(255,255,255,0.05)',
+                      color: scholar.count > 0 ? '#4ade80' : 'var(--text-muted)'
+                    }}>
+                      {scholar.count} {scholar.count === 1 ? 'paper' : 'papers'} read
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Grid Layout: Activities Feed (2/3) + Stats/Claims (1/3) */}
       <div className="dashboard-grid">
         
@@ -253,7 +380,14 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
               <p>No activity logged yet. Try searching and saving some papers!</p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '16px', 
+              maxHeight: '480px', 
+              overflowY: 'auto', 
+              paddingRight: '6px' 
+            }}>
               {activities.map((act) => (
                 <div 
                   key={act.id} 
