@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%" fx="30%" fy="30%">
+      <stop offset="0%" stop-color="#241e12" />
+      <stop offset="100%" stop-color="#100e14" />
+    </radialGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffdf7a" />
+      <stop offset="50%" stop-color="#b8860b" />
+      <stop offset="100%" stop-color="#e8a946" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  
+  <!-- Dark Radial background -->
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)" stroke="rgba(184, 134, 11, 0.15)" stroke-width="8" />
+  
+  <!-- Outer glowing rings -->
+  <circle cx="256" cy="256" r="180" fill="none" stroke="url(#goldGrad)" stroke-width="2" stroke-dasharray="10 30" opacity="0.3" />
+  <circle cx="256" cy="256" r="160" fill="none" stroke="url(#goldGrad)" stroke-width="4" stroke-dasharray="1 15" opacity="0.5" />
+  
+  <!-- Scientific Node Constellation Connections -->
+  <path d="M 180,180 L 332,180 L 390,256 L 332,332 L 180,332 L 122,256 Z" fill="none" stroke="url(#goldGrad)" stroke-width="1.5" stroke-dasharray="6 6" opacity="0.25" />
+  
+  <!-- Constellation Nodes -->
+  <circle cx="180" cy="180" r="6" fill="url(#goldGrad)" filter="url(#glow)" />
+  <circle cx="332" cy="180" r="6" fill="url(#goldGrad)" filter="url(#glow)" />
+  <circle cx="390" cy="256" r="6" fill="url(#goldGrad)" filter="url(#glow)" />
+  <circle cx="332" cy="332" r="6" fill="url(#goldGrad)" filter="url(#glow)" />
+  <circle cx="180" cy="332" r="6" fill="url(#goldGrad)" filter="url(#glow)" />
+  <circle cx="122" cy="256" r="6" fill="url(#goldGrad)" filter="url(#glow)" />
+
+  <!-- Premium Serif "L" Enclosed -->
+  <g filter="url(#glow)">
+    <path d="M 230,170 H 260 V 310 H 310 V 335 H 230 Z" fill="url(#goldGrad)" />
+  </g>
+</svg>

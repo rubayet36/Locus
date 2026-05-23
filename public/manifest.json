@@ -1,0 +1,29 @@
+{
+  "short_name": "Locus",
+  "name": "Locus: Collaborative Scholar Network",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/logo.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#100e14",
+  "theme_color": "#b8860b",
+  "display": "standalone",
+  "orientation": "portrait"
+}

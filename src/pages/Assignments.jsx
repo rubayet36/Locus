@@ -42,13 +42,15 @@ export default function Assignments({ currentUserId, groupId, onNavigate }) {
       // Resolve emails to actual emails from database group_members
       const { data: membersData } = await supabase
         .from('group_members')
-        .select('user_id, email')
+        .select('user_id, email, full_name')
         .eq('group_id', groupId);
 
       const emailsMap = {};
       (membersData || []).forEach(member => {
         if (member.user_id === currentUserId) {
-          emailsMap[member.user_id] = 'You';
+          emailsMap[member.user_id] = member.full_name ? `${member.full_name} (You)` : 'You';
+        } else if (member.full_name) {
+          emailsMap[member.user_id] = member.full_name;
         } else if (member.email) {
           const handle = member.email.split('@')[0];
           emailsMap[member.user_id] = handle.charAt(0).toUpperCase() + handle.slice(1);

@@ -4,10 +4,24 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Locus - A premium collaborative research paper portal for scientists, allowing metadata searches, journal quartile lookup, and real-time paper discussion." />
+    <meta name="theme-color" content="#b8860b" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="apple-touch-icon" href="/logo.svg" />
+    <link rel="manifest" href="/manifest.json" />
     <title>Locus - Collaborative Research Network</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('[Service Worker] Registered successfully', reg.scope))
+            .catch(err => console.error('[Service Worker] Registration failed', err));
+        });
+      }
+    </script>
   </body>
 </html>

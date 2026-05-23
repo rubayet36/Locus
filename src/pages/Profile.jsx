@@ -3,12 +3,18 @@ import { supabase } from '../lib/supabase';
 import RankBadge from '../components/RankBadge';
 import { User, BookOpen, CheckCircle, ChevronRight, Loader2, Award } from 'lucide-react';
 
-export default function Profile({ currentUserId, currentUserEmail, groupId, onNavigate }) {
+export default function Profile({ currentUserId, currentUserEmail, groupId, onNavigate, isFirstTimeSetup = false, onSetupComplete }) {
   const [members, setMembers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState(currentUserId);
   const [claims, setClaims] = useState([]);
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(true);
+
+  // Profile editing states
+  const [editingProfile, setEditingProfile] = useState(isFirstTimeSetup);
+  const [fullNameInput, setFullNameInput] = useState('');
+  const [avatarUrlInput, setAvatarUrlInput] = useState('');
+  const [updating, setUpdating] = useState(false);
 
   // Sync selectedUserId with currentUserId when prop resolves
   useEffect(() => {
@@ -18,45 +24,41 @@ export default function Profile({ currentUserId, currentUserEmail, groupId, onNa
   }, [currentUserId]);
 
   // Fetch all research group members
-  useEffect(() => {
-    const fetchMembers = async () => {
-      if (!groupId) return;
-      try {
-        const { data, error } = await supabase
-          .from('group_members')
-          .select('user_id, role, email')
-          .eq('group_id', groupId);
+  const fetchMembers = async () => {
+    if (!groupId) return;
+    try {
+      const { data, error } = await supabase
+        .from('group_members')
+        .select('user_id, role, email, full_name, avatar_url')
+        .eq('group_id', groupId);
 
-        if (error) throw error;
+      if (error) throw error;
 
-        const formatted = (data || []).map(member => {
-          if (member.email) {
-            const handle = member.email.split('@')[0];
-            const fullName = handle.charAt(0).toUpperCase() + handle.slice(1);
-            return {
-              ...member,
-              email: member.email,
-              fullName
-            };
-          }
-          const hash = member.user_id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-          const firstNames = ['Sarah', 'Alex', 'Elena', 'Marcus', 'Clara'];
-          const lastNames = ['Chen', 'Smith', 'Vasiliev', 'Adebayo', 'Gomez'];
-          const fallbackEmail = `${firstNames[hash % firstNames.length].toLowerCase()}.${lastNames[hash % lastNames.length].toLowerCase()}@locus.edu`;
-          const fullName = `${firstNames[hash % firstNames.length]} ${lastNames[hash % lastNames.length]}`;
-          return {
-            ...member,
-            email: fallbackEmail,
-            fullName
-          };
-        });
+      const formatted = (data || []).map(member => {
+        const handle = member.email ? member.email.split('@')[0] : 'Scholar';
+        const defaultName = handle.charAt(0).toUpperCase() + handle.slice(1);
+        return {
+          ...member,
+          fullName: member.full_name || defaultName,
+          email: member.email || 'scholar@locus.edu',
+          avatarUrl: member.avatar_url || ''
+        };
+      });
 
-        setMembers(formatted);
-      } catch (err) {
-        console.error('Error fetching group members:', err);
+      setMembers(formatted);
+
+      // Pre-populate editing inputs for the current user
+      const currentUserMember = formatted.find(m => m.user_id === currentUserId);
+      if (currentUserMember) {
+        setFullNameInput(currentUserMember.full_name || '');
+        setAvatarUrlInput(currentUserMember.avatar_url || '');
       }
-    };
+    } catch (err) {
+      console.error('Error fetching group members:', err);
+    }
+  };
 
+  useEffect(() => {
     fetchMembers();
   }, [groupId]);
 
@@ -194,6 +196,51 @@ export default function Profile({ currentUserId, currentUserEmail, groupId, onNa
   const selectedName = selectedUserId === currentUserId 
     ? 'Your Academic Profile' 
     : (selectedMember ? `${selectedMember.fullName}'s Profile` : 'Scholar Profile');
+  const selectedAvatar = selectedUserId === currentUserId
+    ? (members.find(m => m.user_id === currentUserId)?.avatarUrl || '')
+    : (selectedMember ? selectedMember.avatarUrl : '');
+
+  const PRESET_AVATARS = [
+    { name: 'Einstein', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Einstein' },
+    { name: 'Curie', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Curie' },
+    { name: 'Newton', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Newton' },
+    { name: 'Ada', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Ada' },
+    { name: 'Darwin', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Darwin' },
+    { name: 'Turing', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Turing' }
+  ];
+
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    if (!fullNameInput.trim()) {
+      alert('Please enter a display name.');
+      return;
+    }
+    try {
+      setUpdating(true);
+      const { error } = await supabase
+        .from('group_members')
+        .update({
+          full_name: fullNameInput.trim(),
+          avatar_url: avatarUrlInput.trim()
+        })
+        .eq('group_id', groupId)
+        .eq('user_id', currentUserId);
+
+      if (error) throw error;
+
+      await fetchMembers();
+      setEditingProfile(false);
+      if (onSetupComplete) {
+        onSetupComplete();
+      }
+      alert('Scholar profile updated successfully!');
+    } catch (err) {
+      console.error('Error updating scholar profile:', err);
+      alert('Failed to update profile: ' + err.message);
+    } finally {
+      setUpdating(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -206,6 +253,27 @@ export default function Profile({ currentUserId, currentUserEmail, groupId, onNa
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
       
+      {/* Welcome Setup Alert (First-time users) */}
+      {isFirstTimeSetup && (
+        <div className="card" style={{ 
+          background: 'rgba(184, 134, 11, 0.08)',
+          border: '1px solid var(--accent-gold)',
+          borderRadius: '12px',
+          padding: '20px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+          boxShadow: '0 8px 32px rgba(184,134,11,0.15)',
+          backdropFilter: 'blur(8px)',
+          animation: 'pulse 2s infinite'
+        }}>
+          <h3 style={{ fontSize: '18px', color: 'var(--accent-gold)', margin: 0, fontWeight: 'bold' }}>Welcome to Locus!</h3>
+          <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)' }}>
+            To get started, please complete your Scholar Profile by entering your display name and choosing a scientific avatar below.
+          </p>
+        </div>
+      )}
+
       {/* Header with selector */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div>
@@ -240,18 +308,29 @@ export default function Profile({ currentUserId, currentUserEmail, groupId, onNa
         display: 'flex',
         alignItems: 'center',
         gap: '24px',
-        border: '1px solid var(--accent-gold)'
+        border: '1px solid var(--accent-gold)',
+        flexWrap: 'wrap'
       }}>
+        {/* Scholar Avatar Circle */}
         <div style={{ 
+          width: '76px',
+          height: '76px',
+          borderRadius: '50%',
           background: 'rgba(232, 169, 70, 0.1)', 
-          border: '1px solid var(--accent-gold)', 
-          borderRadius: '50%', 
-          padding: '20px', 
+          border: '2px solid var(--accent-gold)', 
           display: 'flex', 
           alignItems: 'center', 
-          justifyContent: 'center' 
+          justifyContent: 'center',
+          overflow: 'hidden',
+          flexShrink: 0
         }}>
-          <User size={36} style={{ color: 'var(--accent-gold)' }} />
+          {selectedAvatar ? (
+            <img src={selectedAvatar} alt="Scholar Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            <span style={{ fontSize: '26px', fontWeight: 'bold', color: 'var(--accent-gold)' }}>
+              {selectedName.charAt(0).toUpperCase()}
+            </span>
+          )}
         </div>
         
         <div>
@@ -267,7 +346,122 @@ export default function Profile({ currentUserId, currentUserEmail, groupId, onNa
             </span>
           </div>
         </div>
+
+        {/* Edit Button */}
+        {selectedUserId === currentUserId && (
+          <div style={{ marginLeft: 'auto' }}>
+            <button 
+              className="btn btn-secondary" 
+              onClick={() => setEditingProfile(!editingProfile)}
+              style={{ padding: '8px 16px', gap: '6px', minWidth: '120px' }}
+            >
+              {editingProfile ? 'Close Edit' : 'Edit Profile'}
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Edit Profile Form Panel */}
+      {selectedUserId === currentUserId && editingProfile && (
+        <form onSubmit={handleSaveProfile} className="card" style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: '20px', 
+          background: 'rgba(16, 14, 20, 0.85)',
+          border: '1px solid var(--accent-gold)',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+          animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+        }}>
+          <h3 style={{ fontSize: '20px', color: 'var(--accent-gold)', borderBottom: '1px solid var(--card-border)', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <User size={18} /> Update Scholar Credentials
+          </h3>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', flexWrap: 'wrap' }} className="responsive-grid">
+            {/* Input Name */}
+            <div className="input-group" style={{ margin: 0 }}>
+              <label className="input-label">Scholar Display Name</label>
+              <input 
+                type="text" 
+                className="input-field" 
+                placeholder="e.g. Marie Curie" 
+                required
+                value={fullNameInput}
+                onChange={(e) => setFullNameInput(e.target.value)}
+              />
+              <span className="mono" style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                Your custom profile handle shown on papers and discussions.
+              </span>
+            </div>
+
+            {/* Input Avatar */}
+            <div className="input-group" style={{ margin: 0 }}>
+              <label className="input-label">Profile Picture URL</label>
+              <input 
+                type="url" 
+                className="input-field" 
+                placeholder="https://example.com/avatar.jpg" 
+                value={avatarUrlInput}
+                onChange={(e) => setAvatarUrlInput(e.target.value)}
+              />
+              <span className="mono" style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                Insert any standard image link or pick a scientific preset below.
+              </span>
+            </div>
+          </div>
+
+          {/* Scientific Preset Avatar selection */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label className="input-label" style={{ marginBottom: '4px' }}>Select Premium Scientific Avatar</label>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              {PRESET_AVATARS.map((avatar) => (
+                <div 
+                  key={avatar.name}
+                  onClick={() => setAvatarUrlInput(avatar.url)}
+                  style={{
+                    width: '60px',
+                    height: '60px',
+                    borderRadius: '50%',
+                    border: avatarUrlInput === avatar.url ? '2px solid var(--accent-gold)' : '1px solid var(--card-border)',
+                    background: 'rgba(255,255,255,0.02)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    overflow: 'hidden',
+                    transition: 'var(--transition-smooth)',
+                    boxShadow: avatarUrlInput === avatar.url ? '0 0 12px rgba(184, 134, 11, 0.4)' : 'none'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--accent-gold)'}
+                  onMouseOut={(e) => e.currentTarget.style.borderColor = avatarUrlInput === avatar.url ? 'var(--accent-gold)' : 'var(--card-border)'}
+                  title={`Preset: ${avatar.name}`}
+                >
+                  <img src={avatar.url} alt={avatar.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Save Button */}
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
+            <button 
+              type="button" 
+              className="btn btn-secondary" 
+              onClick={() => setEditingProfile(false)}
+              disabled={updating}
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              className="btn btn-primary" 
+              disabled={updating}
+              style={{ background: 'var(--accent-gold)', color: '#000', fontWeight: 'bold' }}
+            >
+              {updating ? 'Saving Changes...' : 'Save Scholar Profile'}
+            </button>
+          </div>
+        </form>
+      )}
 
       {profileLoading ? (
         <div style={{ display: 'flex', padding: '60px', justifyContent: 'center' }}>

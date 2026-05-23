@@ -48,22 +48,18 @@ export default function Library({ currentUserId, groupId, onNavigate }) {
       // 2. Fetch group members for assignments
       const { data: membersData, error: membersErr } = await supabase
         .from('group_members')
-        .select('user_id, role, email')
+        .select('user_id, role, email, full_name, avatar_url')
         .eq('group_id', groupId);
 
       if (membersErr) throw membersErr;
       
       const formattedMembers = (membersData || []).map(member => {
-        if (member.email) {
-          return member; // Use actual email stored in group_members!
-        }
-        const hash = member.user_id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        const firstNames = ['Sarah', 'Alex', 'Elena', 'Marcus', 'Clara'];
-        const lastNames = ['Chen', 'Smith', 'Vasiliev', 'Adebayo', 'Gomez'];
-        const fallbackEmail = `${firstNames[hash % firstNames.length].toLowerCase()}.${lastNames[hash % lastNames.length].toLowerCase()}@locus.edu`;
+        const handle = member.email ? member.email.split('@')[0] : 'Scholar';
+        const defaultName = handle.charAt(0).toUpperCase() + handle.slice(1);
         return {
           ...member,
-          email: fallbackEmail
+          email: member.email || 'scholar@locus.edu',
+          fullName: member.full_name || defaultName
         };
       });
       

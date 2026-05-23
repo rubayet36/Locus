@@ -22,6 +22,11 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
+  // PWA & Redirect states
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const [isFirstTimeSetup, setIsFirstTimeSetup] = useState(false);
+
   // Auth form states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -40,6 +45,18 @@ export default function App() {
     if (window.location.hash.includes('type=recovery') || window.location.href.includes('type=recovery')) {
       setIsRecoveryMode(true);
     }
+
+    // Handle PWA installation prompt
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+      const dismissed = localStorage.getItem('locus_pwa_install_dismissed');
+      if (!dismissed) {
+        setShowInstallBanner(true);
+      }
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
     // 1. Fetch current session
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -65,8 +82,25 @@ export default function App() {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
   }, []);
+
+  const handleInstallPWA = async () => {
+    if (!installPrompt) return;
+    setShowInstallBanner(false);
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    console.log(`[PWA Install] User choice outcome: ${outcome}`);
+    setInstallPrompt(null);
+  };
+
+  const handleDismissInstall = () => {
+    setShowInstallBanner(false);
+    localStorage.setItem('locus_pwa_install_dismissed', 'true');
+  };
 
   // Automatically ensures the user belongs to the shared research group
   const ensureUserGroup = async (userId) => {
@@ -102,7 +136,7 @@ export default function App() {
       // 2. Check if user is already a member of this shared group
       const { data: memberships, error: memErr } = await supabase
         .from('group_members')
-        .select('group_id')
+        .select('*')
         .eq('group_id', sharedGroup.id)
         .eq('user_id', userId);
 
@@ -119,7 +153,20 @@ export default function App() {
             email: session?.user?.email
           });
         if (joinErr) throw joinErr;
+
+        // Redirect new sign-ins straight to Profile setup!
+        setIsFirstTimeSetup(true);
+        setActivePage('profile');
+        localStorage.setItem('paperhub_active_page', 'profile');
       } else {
+        const currentMember = memberships[0];
+        // If they have never completed their profile setup (missing full_name), take them to Profile!
+        if (!currentMember.full_name) {
+          setIsFirstTimeSetup(true);
+          setActivePage('profile');
+          localStorage.setItem('paperhub_active_page', 'profile');
+        }
+
         // Update user email in group_members to keep it in sync
         await supabase
           .from('group_members')
@@ -285,6 +332,8 @@ export default function App() {
             currentUserEmail={session.user.email}
             groupId={groupId} 
             onNavigate={navigateToPage} 
+            isFirstTimeSetup={isFirstTimeSetup}
+            onSetupComplete={() => setIsFirstTimeSetup(false)}
           />
         );
       case 'paper':
@@ -652,6 +701,43 @@ export default function App() {
       <main className="main-content">
         {renderPageContent()}
       </main>
+
+      {/* PWA Custom Install Sliding Banner */}
+      {showInstallBanner && installPrompt && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          background: 'rgba(16, 14, 20, 0.95)',
+          border: '1px solid var(--accent-gold)',
+          borderRadius: '12px',
+          padding: '20px',
+          maxWidth: '350px',
+          zIndex: 9999,
+          boxShadow: '0 8px 32px rgba(184, 134, 11, 0.25)',
+          backdropFilter: 'blur(12px)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+          animation: 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
+        }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <img src="/logo.svg" alt="Locus Logo" style={{ width: '42px', height: '42px', borderRadius: '8px' }} />
+            <div>
+              <h4 style={{ margin: 0, fontSize: '15px', color: 'var(--text-primary)', fontWeight: 'bold' }}>Install Locus App</h4>
+              <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>Access your collaborative research feed instantly from your home screen!</p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px' }}>
+            <button className="btn btn-secondary" onClick={handleDismissInstall} style={{ padding: '6px 12px', fontSize: '12px' }}>
+              Later
+            </button>
+            <button className="btn btn-primary" onClick={handleInstallPWA} style={{ padding: '6px 16px', fontSize: '12px', background: 'var(--accent-gold)', color: '#000', fontWeight: 'bold' }}>
+              Install Now
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );
