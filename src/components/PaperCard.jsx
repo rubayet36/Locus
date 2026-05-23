@@ -51,7 +51,11 @@ export default function PaperCard({
   const assigneeNames = paperAssignments.map(assign => {
     if (assign.assigned_to === currentUserId) return 'You';
     const member = groupMembers.find(m => m.user_id === assign.assigned_to);
-    return member ? member.email : 'Team Colleague';
+    if (member && member.email) {
+      const handle = member.email.split('@')[0];
+      return handle.charAt(0).toUpperCase() + handle.slice(1);
+    }
+    return 'Team Scholar';
   });
 
   const pdfUrl = url || (doi ? `https://sci-hub.box/${doi}` : null);
@@ -93,7 +97,18 @@ export default function PaperCard({
         </p>
         {saved && paper.added_by && (
           <p className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: assigneeNames.length > 0 ? '8px' : '0' }}>
-            Saved by: <span style={{ color: 'var(--accent-gold)' }}>{paper.added_by === currentUserId ? 'You' : (groupMembers.find(m => m.user_id === paper.added_by)?.email || 'Team Scholar')}</span>
+            Saved by: <span style={{ color: 'var(--accent-gold)' }}>{
+              paper.added_by === currentUserId 
+                ? 'You' 
+                : (() => {
+                    const member = groupMembers.find(m => m.user_id === paper.added_by);
+                    if (member && member.email) {
+                      const handle = member.email.split('@')[0];
+                      return handle.charAt(0).toUpperCase() + handle.slice(1);
+                    }
+                    return 'Team Scholar';
+                  })()
+            }</span>
           </p>
         )}
         {assigneeNames.length > 0 && (

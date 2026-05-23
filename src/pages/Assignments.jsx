@@ -48,8 +48,11 @@ export default function Assignments({ currentUserId, groupId, onNavigate }) {
       (membersData || []).forEach(member => {
         if (member.user_id === currentUserId) {
           emailsMap[member.user_id] = 'You';
+        } else if (member.email) {
+          const handle = member.email.split('@')[0];
+          emailsMap[member.user_id] = handle.charAt(0).toUpperCase() + handle.slice(1);
         } else {
-          emailsMap[member.user_id] = member.email || 'Team Scholar';
+          emailsMap[member.user_id] = 'Team Scholar';
         }
       });
       setUserEmails(emailsMap);
