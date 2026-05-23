@@ -1,4 +1,4 @@
-const CACHE_NAME = 'locus-cache-v1';
+const CACHE_NAME = 'locus-cache-v2';
 const ASSETS = [
   '/',
   '/index.html',
@@ -34,13 +34,41 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch Event (Cache-First or Network fallback)
+// Fetch Event (Network-First for HTML/Manifest, Cache-First for other assets)
 self.addEventListener('fetch', (event) => {
   // Only intercept GET requests for site-hosted assets (not external API calls like Supabase)
   if (event.request.method !== 'GET' || !event.request.url.startsWith(self.location.origin)) {
     return;
   }
 
+  const url = new URL(event.request.url);
+
+  // Network-First strategy for main HTML document and manifest to avoid serving stale compiled asset hashes
+  const isHtml = event.request.headers.get('accept')?.includes('text/html') || 
+                 url.pathname === '/' || 
+                 url.pathname === '/index.html';
+
+  if (isHtml || url.pathname === '/manifest.json') {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          // If offline, return the cached index.html
+          return caches.match('/index.html');
+        })
+    );
+    return;
+  }
+
+  // Cache-First strategy for static assets (images, fonts, hashed JS/CSS chunks)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
@@ -57,10 +85,7 @@ self.addEventListener('fetch', (event) => {
         });
         return networkResponse;
       }).catch(() => {
-        // Return offline index.html fallback if network fails
-        if (event.request.headers.get('accept').includes('text/html')) {
-          return caches.match('/index.html');
-        }
+        // Safe fallback if network fails
       });
     })
   );
