@@ -82,6 +82,11 @@ export default function Search({ currentUserId, groupId }) {
     }
   };
 
+  const normalizeTitle = (title) => {
+    if (!title) return '';
+    return title.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+  };
+
   const handleSearch = async (searchQuery = query) => {
     if (!searchQuery.trim()) return;
     
@@ -90,36 +95,61 @@ export default function Search({ currentUserId, groupId }) {
     setResult(null);
     setSaved(false);
 
+    console.log('[Search] Starting search with query:', searchQuery, 'groupId:', groupId);
+
     try {
       const data = await lookupPaperMetadata(searchQuery);
       setResult(data);
+      console.log('[Search] Retrieved metadata:', data);
       
-      // Perform case-insensitive, fuzzy DOI & title match checks client-side against all group papers
+      // Perform case-insensitive, fuzzy DOI & normalized title match checks client-side against all group papers
       if (data.doi || data.title) {
-        const { data: existingPapers } = await supabase
+        console.log('[Search] Querying existing papers. Group ID filter:', groupId);
+        
+        let queryBuilder = supabase
           .from('papers')
-          .select('id, title, doi')
-          .eq('group_id', groupId);
+          .select('id, title, doi');
+          
+        if (groupId) {
+          queryBuilder = queryBuilder.eq('group_id', groupId);
+        }
+
+        const { data: existingPapers, error: queryErr } = await queryBuilder;
+
+        if (queryErr) {
+          console.error('[Search] Database query error:', queryErr);
+        }
+        console.log('[Search] Existing papers count:', existingPapers ? existingPapers.length : 0, existingPapers);
 
         if (existingPapers) {
           const match = existingPapers.find(p => {
             const doiMatch = p.doi && data.doi && p.doi.trim().toLowerCase() === data.doi.trim().toLowerCase();
-            const titleMatch = p.title && data.title && (
-              p.title.trim().toLowerCase().includes(data.title.trim().toLowerCase()) ||
-              data.title.trim().toLowerCase().includes(p.title.trim().toLowerCase())
+            
+            const normPTitle = normalizeTitle(p.title);
+            const normDataTitle = normalizeTitle(data.title);
+            const titleMatch = normPTitle && normDataTitle && (
+              normPTitle.includes(normDataTitle) ||
+              normDataTitle.includes(normPTitle)
             );
+            
+            console.log(`[Search] Comparing "${p.title}" / "${p.doi}" against "${data.title}" / "${data.doi}": doiMatch=${doiMatch}, titleMatch=${titleMatch}`);
             return doiMatch || titleMatch;
           });
 
+          console.log('[Search] Matching result:', match);
+
           if (match) {
             setSaved(true);
+            console.log('[Search] Match found! Fetching full details for paper ID:', match.id);
             // Fetch complete stored details including assignments and claims
             await fetchSavedPaperDetails(match.id);
+          } else {
+            console.log('[Search] No match found among existing papers.');
           }
         }
       }
     } catch (err) {
-      console.error(err);
+      console.error('[Search] Error in search:', err);
       setError(err.message || 'Failed to retrieve paper metadata. Please check the identifier and try again.');
     } finally {
       setLoading(false);
