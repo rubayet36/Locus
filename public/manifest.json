@@ -9,16 +9,28 @@
       "purpose": "any"
     },
     {
-      "src": "/logo.svg",
-      "type": "image/svg+xml",
-      "sizes": "192x192",
-      "purpose": "maskable"
+      "src": "/favicon-32x32.png",
+      "type": "image/png",
+      "sizes": "32x32",
+      "purpose": "any"
     },
     {
-      "src": "/logo.svg",
-      "type": "image/svg+xml",
+      "src": "/favicon-16x16.png",
+      "type": "image/png",
+      "sizes": "16x16",
+      "purpose": "any"
+    },
+    {
+      "src": "/android-chrome-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "type": "image/png",
       "sizes": "512x512",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     }
   ],
   "start_url": "/",

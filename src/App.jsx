@@ -600,7 +600,10 @@ export default function App() {
         <button className="menu-toggle-btn" onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}>
           <Menu size={22} style={{ color: 'var(--accent-gold)' }} />
         </button>
-        <span className="mobile-logo">Locus</span>
+        <span className="mobile-logo" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <img src="/favicon-32x32.png" alt="Locus Logo" style={{ width: '22px', height: '22px', borderRadius: '4px' }} />
+          Locus
+        </span>
         <div style={{ width: '22px' }}></div> {/* Spacer */}
       </div>
       
@@ -611,8 +614,9 @@ export default function App() {
           <X size={20} />
         </button>
 
-        <div className="sidebar-logo">
-          <Sparkles size={20} /> Locus
+        <div className="sidebar-logo" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <img src="/apple-touch-icon.png" alt="Locus Logo" style={{ width: '26px', height: '26px', borderRadius: '6px' }} />
+          Locus
         </div>
 
         <nav style={{ flex: 1 }}>
