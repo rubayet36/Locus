@@ -300,13 +300,13 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
 
       {/* Statistics Row */}
       {loading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+        <div className="stats-grid">
           <div className="card" style={{ height: '110px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <span className="mono" style={{ color: 'var(--text-muted)' }}>Calculating stats...</span>
           </div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+        <div className="stats-grid">
           {/* Stat 1: Total Saved Papers */}
           <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '20px', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid var(--card-border)' }}>
             <div style={{ background: 'rgba(232, 169, 70, 0.1)', border: '1px solid var(--accent-gold)', borderRadius: '12px', padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

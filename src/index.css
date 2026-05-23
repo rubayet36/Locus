@@ -666,6 +666,15 @@ a:hover {
     width: 100% !important;
     justify-content: space-between !important;
   }
+
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  .card {
+    padding: 16px !important;
+  }
 }
 
 /* Premium Desktop Classes to ensure mobile styling rules hook on */
@@ -731,4 +740,10 @@ a:hover {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
 }
