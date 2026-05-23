@@ -107,12 +107,12 @@ create table public.activity_log (
 
 -- 3. FUNCTIONS & TRIGGERS
 
--- Auto-insert creator as owner when a group is created
+-- Auto-insert creator as member when a group is created
 create or replace function public.handle_new_group()
 returns trigger as $$
 begin
   insert into public.group_members (group_id, user_id, role)
-  values (new.id, new.created_by, 'owner');
+  values (new.id, new.created_by, 'member');
   return new;
 end;
 $$ language plpgsql security definer;
