@@ -60,7 +60,7 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
           .eq('status', 'reading'),
         supabase
           .from('group_members')
-          .select('user_id, role, email')
+          .select('user_id, role, email, full_name, avatar_url')
           .eq('group_id', groupId),
         supabase
           .from('reading_claims')
@@ -93,11 +93,17 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
 
       // Helper to extract a display name from member email or fallback
       const getDisplayName = (uid) => {
-        if (uid === currentUserId) return 'You';
+        if (uid === currentUserId) {
+          const selfMember = dbMembers.find(m => m.user_id === currentUserId);
+          return selfMember?.full_name ? selfMember.full_name : 'You';
+        }
         const member = dbMembers.find(m => m.user_id === uid);
-        if (member && member.email) {
-          const handle = member.email.split('@')[0];
-          return handle.charAt(0).toUpperCase() + handle.slice(1);
+        if (member) {
+          if (member.full_name) return member.full_name;
+          if (member.email) {
+            const handle = member.email.split('@')[0];
+            return handle.charAt(0).toUpperCase() + handle.slice(1);
+          }
         }
         return 'Team Scholar';
       };
@@ -153,12 +159,14 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
       const scholarStats = dbMembers.map(m => {
         const readSet = userReadSet[m.user_id] || new Set();
         const handle = m.email ? m.email.split('@')[0] : 'Scholar';
-        const name = m.user_id === currentUserId 
-          ? 'You' 
-          : handle.charAt(0).toUpperCase() + handle.slice(1);
+        const defaultName = handle.charAt(0).toUpperCase() + handle.slice(1);
+        let displayName = m.full_name || defaultName;
+        if (m.user_id === currentUserId) {
+          displayName = m.full_name ? `${m.full_name} (You)` : 'You';
+        }
         return {
           userId: m.user_id,
-          name,
+          name: displayName,
           email: m.email || '',
           count: readSet.size
         };
@@ -218,11 +226,17 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
     
     // Stable pseudo-name mapping for researchers
     const getPseudoName = (uid) => {
-      if (uid === currentUserId) return 'You';
+      if (uid === currentUserId) {
+        const selfMember = members.find(m => m.user_id === currentUserId);
+        return selfMember?.full_name ? selfMember.full_name : 'You';
+      }
       const member = members.find(m => m.user_id === uid);
-      if (member && member.email) {
-        const handle = member.email.split('@')[0];
-        return handle.charAt(0).toUpperCase() + handle.slice(1);
+      if (member) {
+        if (member.full_name) return member.full_name;
+        if (member.email) {
+          const handle = member.email.split('@')[0];
+          return handle.charAt(0).toUpperCase() + handle.slice(1);
+        }
       }
       return 'Team Scholar';
     };
