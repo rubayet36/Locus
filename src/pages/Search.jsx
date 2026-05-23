@@ -102,19 +102,13 @@ export default function Search({ currentUserId, groupId }) {
       setResult(data);
       console.log('[Search] Retrieved metadata:', data);
       
-      // Perform case-insensitive, fuzzy DOI & normalized title match checks client-side against all group papers
+      // Perform case-insensitive, fuzzy DOI & normalized title match checks client-side against all accessible papers
       if (data.doi || data.title) {
-        console.log('[Search] Querying existing papers. Group ID filter:', groupId);
+        console.log('[Search] Querying existing papers (relying on RLS to security-scope records)...');
         
-        let queryBuilder = supabase
+        const { data: existingPapers, error: queryErr } = await supabase
           .from('papers')
           .select('id, title, doi');
-          
-        if (groupId) {
-          queryBuilder = queryBuilder.eq('group_id', groupId);
-        }
-
-        const { data: existingPapers, error: queryErr } = await queryBuilder;
 
         if (queryErr) {
           console.error('[Search] Database query error:', queryErr);
