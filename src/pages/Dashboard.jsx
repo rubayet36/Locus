@@ -21,7 +21,6 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
           *,
           papers (title)
         `)
-        .eq('group_id', groupId)
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -35,7 +34,6 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
           *,
           paper_meta (sjr_quartile, core_rank)
         `)
-        .eq('group_id', groupId)
         .order('created_at', { ascending: false })
         .limit(4);
 
@@ -70,7 +68,7 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
       .channel('dashboard-feed')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'activity_log', filter: `group_id=eq.${groupId}` },
+        { event: 'INSERT', schema: 'public', table: 'activity_log' },
         () => {
           fetchDashboardData();
         }

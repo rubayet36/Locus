@@ -40,7 +40,6 @@ export default function Library({ currentUserId, groupId, onNavigate }) {
             status
           )
         `)
-        .eq('group_id', groupId)
         .order('created_at', { ascending: false });
 
       if (papersErr) throw papersErr;
@@ -84,7 +83,7 @@ export default function Library({ currentUserId, groupId, onNavigate }) {
       .channel('library-sync')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'papers', filter: `group_id=eq.${groupId}` },
+        { event: '*', schema: 'public', table: 'papers' },
         () => fetchLibraryData()
       )
       .subscribe();
