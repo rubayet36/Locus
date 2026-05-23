@@ -571,4 +571,164 @@ a:hover {
     max-width: 95% !important;
     padding: 20px !important;
   }
+
+  /* Core Responsive Class Overrides */
+  h1 {
+    font-size: 26px !important;
+  }
+  h2 {
+    font-size: 20px !important;
+  }
+  h3 {
+    font-size: 17px !important;
+  }
+
+  .page-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 16px !important;
+  }
+  
+  .page-header > div {
+    width: 100%;
+  }
+
+  .page-header .btn, .page-header select {
+    width: 100% !important;
+  }
+
+  .search-bar-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+  
+  .search-bar-row button {
+    width: 100% !important;
+  }
+
+  .responsive-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  .jats-reader-container {
+    padding: 24px 16px !important;
+    font-size: 16px !important;
+    max-width: 100% !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  
+  .jats-reader-container h1 {
+    font-size: 22px !important;
+  }
+
+  .jats-reader-container p {
+    font-size: 15px !important;
+  }
+
+  .paper-actions-bar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+  
+  .paper-actions-bar > div {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+  }
+  
+  .paper-actions-bar .btn, .paper-actions-bar select {
+    width: 100% !important;
+  }
+
+  .reader-controls-bar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+    padding: 12px !important;
+  }
+
+  .reader-tabs-row {
+    width: 100% !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    padding-bottom: 4px !important;
+  }
+  
+  .reader-tabs-row::-webkit-scrollbar {
+    height: 3px !important;
+  }
+
+  .reader-zoom-controls {
+    width: 100% !important;
+    justify-content: space-between !important;
+  }
+}
+
+/* Premium Desktop Classes to ensure mobile styling rules hook on */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.search-bar-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.responsive-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.paper-actions-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.jats-reader-container {
+  width: 100%;
+  max-width: 800px;
+  background: #fcfbf7;
+  color: #1a1a1a;
+  padding: 50px 60px;
+  border-radius: 4px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  font-family: 'Crimson Pro', serif;
+  font-size: 18px;
+  line-height: 1.6;
+  height: fit-content;
+}
+
+.reader-controls-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: rgba(16, 14, 20, 0.95);
+  border-bottom: 1px solid var(--card-border);
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.reader-tabs-row {
+  display: flex;
+  gap: 8px;
+}
+
+.reader-zoom-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }

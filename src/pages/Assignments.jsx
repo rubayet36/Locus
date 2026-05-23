@@ -147,7 +147,7 @@ export default function Assignments({ currentUserId, groupId, onNavigate }) {
       
       {/* Header */}
       <div>
-        <h1 style={{ fontSize: '36px', marginBottom: '8px' }}>Assignments Kanban</h1>
+        <h1 style={{ marginBottom: '8px' }}>Assignments Kanban</h1>
         <p style={{ color: 'var(--text-secondary)' }}>
           Track reading tasks assigned to team members. Move papers through columns to indicate reading progress.
         </p>

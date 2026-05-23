@@ -168,7 +168,7 @@ export default function PaperCard({
         }}
       >
         {doi && (
-          <div className="mono" style={{ color: 'var(--text-secondary)' }}>
+          <div className="mono" style={{ color: 'var(--text-secondary)', wordBreak: 'break-all' }}>
             <strong>DOI:</strong> <span style={{ color: 'var(--text-primary)' }}>{doi}</span>
           </div>
         )}
@@ -193,15 +193,10 @@ export default function PaperCard({
       </div>
 
       {/* Actions and status locks */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
+      <div className="paper-actions-bar" style={{ 
         borderTop: '1px solid var(--card-border)', 
         paddingTop: '16px',
-        marginTop: 'auto',
-        flexWrap: 'wrap',
-        gap: '12px'
+        marginTop: 'auto'
       }}>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {/* Direct link to PDF */}

@@ -275,9 +275,9 @@ export default function Profile({ currentUserId, currentUserEmail, groupId, onNa
       )}
 
       {/* Header with selector */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+      <div className="page-header">
         <div>
-          <h1 style={{ fontSize: '36px', marginBottom: '8px' }}>Researcher Profiles</h1>
+          <h1 style={{ marginBottom: '8px' }}>Researcher Profiles</h1>
           <p style={{ color: 'var(--text-secondary)' }}>
             Track academic activity, claim statuses, and reading achievements for your research collective.
           </p>
@@ -376,7 +376,7 @@ export default function Profile({ currentUserId, currentUserEmail, groupId, onNa
             <User size={18} /> Update Scholar Credentials
           </h3>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', flexWrap: 'wrap' }} className="responsive-grid">
+          <div className="responsive-grid">
             {/* Input Name */}
             <div className="input-group" style={{ margin: 0 }}>
               <label className="input-label">Scholar Display Name</label>

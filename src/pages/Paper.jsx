@@ -289,7 +289,7 @@ export default function Paper({ paperId, currentUserId, onNavigate }) {
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', gap: '20px' }}>
       
       {/* Header Bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--card-border)', paddingBottom: '16px' }}>
+      <div className="page-header" style={{ borderBottom: '1px solid var(--card-border)', paddingBottom: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <button 
             className="btn btn-secondary" 
@@ -332,17 +332,10 @@ export default function Paper({ paperId, currentUserId, onNavigate }) {
         <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '0', overflow: 'hidden', background: '#0e0c12' }}>
           
           {/* Reader Tabs & Controls */}
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center', 
-            padding: '12px 20px', 
-            background: 'rgba(16, 14, 20, 0.95)',
-            borderBottom: '1px solid var(--card-border)'
-          }}>
+          <div className="reader-controls-bar">
             
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div className="reader-tabs-row">
               <button 
                 onClick={() => setActiveTab('reader')}
                 className={`btn ${activeTab === 'reader' ? 'btn-primary' : 'btn-secondary'}`}
@@ -371,7 +364,7 @@ export default function Paper({ paperId, currentUserId, onNavigate }) {
 
             {/* Contextual Toolbar Controls */}
             {activeTab === 'reader' ? (
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <div className="reader-zoom-controls">
                 <button 
                   className="btn btn-secondary"
                   onClick={handleHighlightSelection}
@@ -406,20 +399,10 @@ export default function Paper({ paperId, currentUserId, onNavigate }) {
             <div style={{ flex: 1, overflowY: 'auto', padding: '40px', display: 'flex', justifyContent: 'center' }}>
               <div 
                 id="paper-readable-body"
+                className="jats-reader-container"
                 style={{ 
-                  width: '100%', 
-                  maxWidth: '800px', 
-                  background: '#fcfbf7', 
-                  color: '#1a1a1a', 
-                  padding: '50px 60px',
-                  borderRadius: '4px',
-                  boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
                   transform: `scale(${zoom / 100})`,
                   transformOrigin: 'top center',
-                  fontFamily: "'Crimson Pro', serif",
-                  fontSize: '18px',
-                  lineHeight: '1.6',
-                  height: 'fit-content'
                 }}
               >
                 {/* Document Header */}

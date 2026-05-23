@@ -160,9 +160,9 @@ export default function Library({ currentUserId, groupId, onNavigate }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
       
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="page-header">
         <div>
-          <h1 style={{ fontSize: '36px', marginBottom: '8px' }}>Group Library</h1>
+          <h1 style={{ marginBottom: '8px' }}>Group Library</h1>
           <p style={{ color: 'var(--text-secondary)' }}>
             All papers saved by your research team. Filter by rank quartile, assignment status, or claim locks.
           </p>

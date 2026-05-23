@@ -292,7 +292,7 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
       
       {/* Header */}
       <div>
-        <h1 style={{ fontSize: '36px', marginBottom: '8px' }}>Research Portal Dashboard</h1>
+        <h1 style={{ marginBottom: '8px' }}>Research Portal Dashboard</h1>
         <p style={{ color: 'var(--text-secondary)' }}>
           Collaborate, review journal quartiles, and share academic insights with your group in real-time.
         </p>

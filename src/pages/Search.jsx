@@ -123,7 +123,7 @@ export default function Search({ currentUserId, groupId }) {
       
       {/* Header */}
       <div>
-        <h1 style={{ fontSize: '36px', marginBottom: '8px' }}>Paper Metadata Lookup</h1>
+        <h1 style={{ marginBottom: '8px' }}>Paper Metadata Lookup</h1>
         <p style={{ color: 'var(--text-secondary)' }}>
           Paste a DOI, publisher URL, or search using a paper title. We will query Crossref, Semantic Scholar, and calculate academic ranks in real-time.
         </p>
@@ -131,7 +131,7 @@ export default function Search({ currentUserId, groupId }) {
 
       {/* Search Input Card */}
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div className="search-bar-row">
           <div style={{ flex: 1, position: 'relative' }}>
             <input 
               type="text" 
