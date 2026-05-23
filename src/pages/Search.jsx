@@ -220,6 +220,21 @@ export default function Search({ currentUserId, groupId }) {
     const paperId = typeof paperOrId === 'object' ? paperOrId.id : paperOrId;
     if (!paperId) return;
     try {
+      if (!assignedToId) {
+        // Delete all assignments for this paper and user
+        const { error } = await supabase
+          .from('assignments')
+          .delete()
+          .eq('paper_id', paperId)
+          .eq('assigned_to', currentUserId);
+
+        if (error) throw error;
+
+        alert('Paper unassigned successfully!');
+        await fetchSavedPaperDetails(paperId);
+        return;
+      }
+
       const { error } = await supabase
         .from('assignments')
         .insert({

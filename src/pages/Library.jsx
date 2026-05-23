@@ -90,8 +90,25 @@ export default function Library({ currentUserId, groupId, onNavigate }) {
     };
   }, [groupId]);
 
-  const handleAssign = async (paperId, assignedToId) => {
+  const handleAssign = async (paperOrId, assignedToId) => {
+    const paperId = typeof paperOrId === 'object' ? paperOrId.id : paperOrId;
+    if (!paperId) return;
     try {
+      if (!assignedToId) {
+        // Delete all assignments for this paper and user
+        const { error } = await supabase
+          .from('assignments')
+          .delete()
+          .eq('paper_id', paperId)
+          .eq('assigned_to', currentUserId);
+
+        if (error) throw error;
+
+        alert('Paper unassigned successfully!');
+        fetchLibraryData();
+        return;
+      }
+
       const { error } = await supabase
         .from('assignments')
         .insert({

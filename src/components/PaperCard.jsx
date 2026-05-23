@@ -48,7 +48,18 @@ export default function PaperCard({
   };
 
   const paperAssignments = paper.assignments || [];
-  const assigneeNames = paperAssignments.map(assign => {
+  
+  // Deduplicate assignments by user_id to prevent duplicates
+  const uniqueAssignments = [];
+  const seenAssignees = new Set();
+  paperAssignments.forEach(assign => {
+    if (assign.assigned_to && !seenAssignees.has(assign.assigned_to)) {
+      seenAssignees.add(assign.assigned_to);
+      uniqueAssignments.push(assign);
+    }
+  });
+
+  const assigneeNames = uniqueAssignments.map(assign => {
     if (assign.assigned_to === currentUserId) {
       const selfMember = groupMembers.find(m => m.user_id === currentUserId);
       return selfMember?.fullName ? `${selfMember.fullName} (You)` : 'You';
@@ -225,60 +236,116 @@ export default function PaperCard({
 
         <div style={{ display: 'flex', gap: '8px', position: 'relative' }}>
           {/* Assign option (only for saved papers) */}
-          {saved && id && groupMembers.length > 0 && (
-            <div>
-              <button 
-                className="btn btn-secondary" 
-                onClick={() => setShowAssignDropdown(!showAssignDropdown)}
-                style={{ padding: '8px 12px', gap: '4px' }}
-              >
-                <UserPlus size={14} />
-                Assign
-              </button>
-              {showAssignDropdown && (
-                <div style={{
-                  position: 'absolute',
-                  bottom: '100%',
-                  right: 0,
-                  marginBottom: '8px',
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--card-border)',
-                  borderRadius: '8px',
-                  padding: '8px 0',
-                  minWidth: '200px',
-                  zIndex: 200,
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
-                }}>
-                  <div className="mono" style={{ fontSize: '10px', color: 'var(--text-muted)', padding: '4px 16px', textTransform: 'uppercase' }}>
-                    Select Member
+          {saved && id && groupMembers.length > 0 && (() => {
+            const myAssignment = uniqueAssignments.find(a => a.assigned_to === currentUserId);
+            const otherAssignment = uniqueAssignments.find(a => a.assigned_to !== currentUserId);
+
+            if (myAssignment) {
+              return (
+                <button 
+                  className="btn" 
+                  onClick={() => handleAssignSelect(null)}
+                  style={{ 
+                    padding: '8px 12px', 
+                    gap: '4.8px',
+                    backgroundColor: 'rgba(34,197,94,0.08)',
+                    border: '1px solid #22c55e',
+                    color: '#4ade80',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    fontWeight: 600,
+                    borderRadius: 'var(--border-radius-sm)'
+                  }}
+                  title="Click to unassign this paper"
+                >
+                  <Check size={14} />
+                  Assigned (You)
+                </button>
+              );
+            }
+
+            if (otherAssignment) {
+              const colleague = groupMembers.find(m => m.user_id === otherAssignment.assigned_to);
+              const colleagueName = colleague?.fullName || 'Colleague';
+              return (
+                <button 
+                  className="btn" 
+                  disabled
+                  style={{ 
+                    padding: '8px 12px', 
+                    gap: '4px',
+                    backgroundColor: 'rgba(255,255,255,0.02)',
+                    border: '1px solid var(--card-border)',
+                    color: 'var(--text-muted)',
+                    cursor: 'not-allowed',
+                    opacity: 0.6,
+                    display: 'flex',
+                    alignItems: 'center',
+                    borderRadius: 'var(--border-radius-sm)'
+                  }}
+                >
+                  <UserPlus size={14} />
+                  Assigned to {colleagueName}
+                </button>
+              );
+            }
+
+            return (
+              <div>
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={() => setShowAssignDropdown(!showAssignDropdown)}
+                  style={{ padding: '8px 12px', gap: '4px' }}
+                >
+                  <UserPlus size={14} />
+                  Assign
+                </button>
+                {showAssignDropdown && (
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '100%',
+                    right: 0,
+                    marginBottom: '8px',
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--card-border)',
+                    borderRadius: '8px',
+                    padding: '8px 0',
+                    minWidth: '200px',
+                    zIndex: 200,
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
+                  }}>
+                    <div className="mono" style={{ fontSize: '10px', color: 'var(--text-muted)', padding: '4px 16px', textTransform: 'uppercase' }}>
+                      Select Member
+                    </div>
+                    {groupMembers.map(member => (
+                      <button
+                        key={member.user_id}
+                        onClick={() => handleAssignSelect(member.user_id)}
+                        style={{
+                          width: '100%',
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--text-primary)',
+                          padding: '8px 16px',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          fontSize: '13px',
+                          transition: 'var(--transition-smooth)'
+                        }}
+                        onMouseOver={(e) => e.target.style.backgroundColor = 'rgba(255,255,255,0.05)'}
+                        onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
+                      >
+                        {member.user_id === currentUserId 
+                          ? `${member.fullName || 'You'} (You)` 
+                          : member.fullName || member.email || 'Group Colleague'}
+                      </button>
+                    ))}
                   </div>
-                  {groupMembers.map(member => (
-                    <button
-                      key={member.user_id}
-                      onClick={() => handleAssignSelect(member.user_id)}
-                      style={{
-                        width: '100%',
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--text-primary)',
-                        padding: '8px 16px',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        fontSize: '13px',
-                        transition: 'var(--transition-smooth)'
-                      }}
-                      onMouseOver={(e) => e.target.style.backgroundColor = 'rgba(255,255,255,0.05)'}
-                      onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
-                    >
-                      {member.user_id === currentUserId 
-                        ? `${member.fullName || 'You'} (You)` 
-                        : member.fullName || member.email || 'Group Colleague'}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            );
+          })()}
 
           {/* Save to library */}
           {!saved ? (
