@@ -82,7 +82,9 @@ export default function Profile({ currentUserId, currentUserEmail, groupId, onNa
               paper_meta (
                 venue_name,
                 sjr_quartile,
-                core_rank
+                core_rank,
+                rank_source,
+                sjr
               )
             )
           `)
@@ -103,7 +105,9 @@ export default function Profile({ currentUserId, currentUserEmail, groupId, onNa
               paper_meta (
                 venue_name,
                 sjr_quartile,
-                core_rank
+                core_rank,
+                rank_source,
+                sjr
               )
             )
           `)

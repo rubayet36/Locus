@@ -34,7 +34,7 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
         .from('papers')
         .select(`
           *,
-          paper_meta (sjr_quartile, core_rank)
+          paper_meta (sjr_quartile, core_rank, rank_source, sjr)
         `)
         .order('created_at', { ascending: false })
         .limit(4);

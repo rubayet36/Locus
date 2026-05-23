@@ -48,7 +48,18 @@ create table public.paper_meta (
   sjr_rank text,
   sjr_quartile text,
   core_rank text,
+  rank_source text,
+  sjr text,
   h_index integer,
+  citation_count integer,
+  influential_citation_count integer,
+  openalex_cited_by_count integer,
+  fwci numeric,
+  impact_score text,
+  semantic_scholar_id text,
+  openalex_id text,
+  author_metrics jsonb default '[]'::jsonb,
+  institutions jsonb default '[]'::jsonb,
   cached_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 

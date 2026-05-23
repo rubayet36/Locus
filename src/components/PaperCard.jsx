@@ -31,6 +31,13 @@ export default function PaperCard({
   const venue = paper_meta?.venue_name || paper.venue_name || 'Unknown Venue';
   const issn = paper_meta?.issn || paper.issn || '';
   const hIndex = paper_meta?.h_index || paper.h_index || '';
+  const sjr = paper_meta?.sjr || paper.sjr || '';
+  const rankSource = paper_meta?.rank_source || paper.rank_source || '';
+  const isEstimatedRank = rankSource.toLowerCase().includes('estimated');
+  const citationCount = paper_meta?.citation_count ?? paper.citation_count;
+  const influentialCitationCount = paper_meta?.influential_citation_count ?? paper.influential_citation_count;
+  const fwci = paper_meta?.fwci ?? paper.fwci;
+  const impactScore = paper_meta?.impact_score || paper.impact_score || '';
 
   const authorText = Array.isArray(authors) ? authors.join(', ') : authors;
   
@@ -185,12 +192,17 @@ export default function PaperCard({
         )}
         {issn && (
           <div className="mono" style={{ color: 'var(--text-secondary)' }}>
-            <strong>ISSN:</strong> <span style={{ color: 'var(--text-primary)' }}>{issn}</span>
+            <strong>ISSN:</strong> <span style={{ color: 'var(--text-primary)', userSelect: 'text' }}>{issn}</span>
           </div>
         )}
         {hIndex && (
           <div className="mono" style={{ color: 'var(--text-secondary)' }}>
             <strong>H-INDEX:</strong> <span style={{ color: 'var(--accent-gold)' }}>{hIndex}</span>
+          </div>
+        )}
+        {sjr && (
+          <div className="mono" style={{ color: 'var(--text-secondary)' }}>
+            <strong>SJR:</strong> <span style={{ color: 'var(--accent-gold)' }}>{sjr}</span>
           </div>
         )}
         {rank && (
@@ -199,6 +211,34 @@ export default function PaperCard({
             <span style={{ color: rank.startsWith('Q') ? '#4ade80' : '#c084fc', fontWeight: 600 }}>
               {rank} ({rank.startsWith('Q') ? 'SJR Quartile' : 'CORE Conference'})
             </span>
+            {isEstimatedRank && (
+              <span style={{ color: 'var(--text-muted)' }}> - estimate</span>
+            )}
+          </div>
+        )}
+        {citationCount !== undefined && citationCount !== null && (
+          <div className="mono" style={{ color: 'var(--text-secondary)' }}>
+            <strong>CITATIONS:</strong> <span style={{ color: 'var(--accent-gold)' }}>{citationCount}</span>
+          </div>
+        )}
+        {influentialCitationCount !== undefined && influentialCitationCount !== null && (
+          <div className="mono" style={{ color: 'var(--text-secondary)' }}>
+            <strong>INFLUENTIAL:</strong> <span style={{ color: 'var(--accent-gold)' }}>{influentialCitationCount}</span>
+          </div>
+        )}
+        {fwci && (
+          <div className="mono" style={{ color: 'var(--text-secondary)' }}>
+            <strong>FWCI:</strong> <span style={{ color: 'var(--accent-gold)' }}>{Number(fwci).toFixed(2)}</span>
+          </div>
+        )}
+        {impactScore && (
+          <div className="mono" style={{ color: 'var(--text-secondary)' }}>
+            <strong>IMPACT:</strong> <span style={{ color: impactScore === 'High' ? '#4ade80' : impactScore === 'Moderate' ? '#fbbf24' : '#93c5fd', fontWeight: 700 }}>{impactScore}</span>
+          </div>
+        )}
+        {rankSource && (
+          <div className="mono" style={{ color: 'var(--text-muted)', flexBasis: '100%', fontSize: '11px' }}>
+            {rankSource}
           </div>
         )}
       </div>

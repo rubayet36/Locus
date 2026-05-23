@@ -30,7 +30,9 @@ export default function Assignments({ currentUserId, groupId, onNavigate }) {
             year,
             paper_meta (
               sjr_quartile,
-              core_rank
+              core_rank,
+              rank_source,
+              sjr
             )
           )
         `)

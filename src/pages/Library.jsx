@@ -3,6 +3,30 @@ import { supabase } from '../lib/supabase';
 import PaperCard from '../components/PaperCard';
 import { Grid, List, Search as SearchIcon, SlidersHorizontal, Trash2, Library as LibIcon } from 'lucide-react';
 
+const PAPER_META_LEGACY_FIELDS = `
+  venue_name,
+  issn,
+  sjr_rank,
+  sjr_quartile,
+  core_rank,
+  rank_source,
+  sjr,
+  h_index
+`;
+
+const PAPER_META_RANKING_FIELDS = `
+  ${PAPER_META_LEGACY_FIELDS},
+  citation_count,
+  influential_citation_count,
+  openalex_cited_by_count,
+  fwci,
+  impact_score,
+  semantic_scholar_id,
+  openalex_id,
+  author_metrics,
+  institutions
+`;
+
 export default function Library({ currentUserId, groupId, onNavigate }) {
   const [papers, setPapers] = useState([]);
   const [groupMembers, setGroupMembers] = useState([]);
@@ -19,18 +43,11 @@ export default function Library({ currentUserId, groupId, onNavigate }) {
       setLoading(true);
 
       // 1. Fetch papers in group with metadata and claims
-      const { data: papersData, error: papersErr } = await supabase
+      let { data: papersData, error: papersErr } = await supabase
         .from('papers')
         .select(`
           *,
-          paper_meta (
-            venue_name,
-            issn,
-            sjr_rank,
-            sjr_quartile,
-            core_rank,
-            h_index
-          ),
+          paper_meta (${PAPER_META_RANKING_FIELDS}),
           reading_claims (
             user_id,
             status
@@ -41,6 +58,26 @@ export default function Library({ currentUserId, groupId, onNavigate }) {
           )
         `)
         .order('created_at', { ascending: false });
+
+      if (papersErr?.code === '42703') {
+        const fallback = await supabase
+          .from('papers')
+          .select(`
+            *,
+            paper_meta (${PAPER_META_LEGACY_FIELDS}),
+            reading_claims (
+              user_id,
+              status
+            ),
+            assignments (
+              assigned_to,
+              status
+            )
+          `)
+          .order('created_at', { ascending: false });
+        papersData = fallback.data;
+        papersErr = fallback.error;
+      }
 
       if (papersErr) throw papersErr;
       setPapers(papersData || []);
@@ -153,22 +190,32 @@ export default function Library({ currentUserId, groupId, onNavigate }) {
   // Filter logic
   const filteredPapers = papers.filter(paper => {
     const meta = paper.paper_meta || {};
-    const rank = meta.sjr_quartile || meta.core_rank || '';
+    const rank = meta.sjr_quartile || meta.core_rank || paper.rank || '';
     
     // Fuzzy search
+    const authorText = Array.isArray(paper.authors) 
+      ? paper.authors.join(', ') 
+      : (typeof paper.authors === 'string' ? paper.authors : '');
     const matchesSearch = 
       paper.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (paper.authors && paper.authors.some(auth => auth.toLowerCase().includes(searchTerm.toLowerCase())));
+      authorText.toLowerCase().includes(searchTerm.toLowerCase());
 
     // Rank filter
     const matchesRank = selectedRank === '' || rank.toUpperCase() === selectedRank.toUpperCase();
 
-    // Claim status filter
+    // Claim status filter based on team-wide locks
     const claims = paper.reading_claims || [];
-    const userClaim = claims.find(c => c.user_id === currentUserId);
-    const claimStatus = userClaim ? userClaim.status : 'unread';
+    const hasReading = claims.some(c => c.status === 'reading');
+    const hasDone = claims.some(c => c.status === 'done');
     
-    const matchesClaim = selectedClaimStatus === '' || claimStatus === selectedClaimStatus;
+    let matchesClaim = true;
+    if (selectedClaimStatus === 'reading') {
+      matchesClaim = hasReading;
+    } else if (selectedClaimStatus === 'done') {
+      matchesClaim = hasDone;
+    } else if (selectedClaimStatus === 'unread') {
+      matchesClaim = !hasReading && !hasDone;
+    }
 
     return matchesSearch && matchesRank && matchesClaim;
   });

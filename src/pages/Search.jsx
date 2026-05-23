@@ -11,6 +11,30 @@ const SUGGESTIONS = [
   { label: 'Topic Search: CRISPR Gene Editing', value: 'CRISPR Cas9 gene editing efficiency' }
 ];
 
+const PAPER_META_LEGACY_FIELDS = `
+  venue_name,
+  issn,
+  sjr_rank,
+  sjr_quartile,
+  core_rank,
+  rank_source,
+  sjr,
+  h_index
+`;
+
+const PAPER_META_RANKING_FIELDS = `
+  ${PAPER_META_LEGACY_FIELDS},
+  citation_count,
+  influential_citation_count,
+  openalex_cited_by_count,
+  fwci,
+  impact_score,
+  semantic_scholar_id,
+  openalex_id,
+  author_metrics,
+  institutions
+`;
+
 export default function Search({ currentUserId, groupId }) {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -18,6 +42,9 @@ export default function Search({ currentUserId, groupId }) {
   const [result, setResult] = useState(null);
   const [saved, setSaved] = useState(false);
   const [groupMembers, setGroupMembers] = useState([]);
+  const [saveDraft, setSaveDraft] = useState(null);
+  const [manualRank, setManualRank] = useState('');
+  const [initialAssignee, setInitialAssignee] = useState('');
 
   // Fetch group members for name resolution inside PaperCard
   const fetchMembers = async () => {
@@ -50,18 +77,11 @@ export default function Search({ currentUserId, groupId }) {
   // Fetch fully qualified paper details from the DB
   const fetchSavedPaperDetails = async (paperId) => {
     try {
-      const { data: fullPaper } = await supabase
+      let { data: fullPaper, error } = await supabase
         .from('papers')
         .select(`
           *,
-          paper_meta (
-            venue_name,
-            issn,
-            sjr_rank,
-            sjr_quartile,
-            core_rank,
-            h_index
-          ),
+          paper_meta (${PAPER_META_RANKING_FIELDS}),
           reading_claims (
             user_id,
             status
@@ -73,6 +93,29 @@ export default function Search({ currentUserId, groupId }) {
         `)
         .eq('id', paperId)
         .single();
+
+      if (error?.code === '42703') {
+        const fallback = await supabase
+          .from('papers')
+          .select(`
+            *,
+            paper_meta (${PAPER_META_LEGACY_FIELDS}),
+            reading_claims (
+              user_id,
+              status
+            ),
+            assignments (
+              assigned_to,
+              status
+            )
+          `)
+          .eq('id', paperId)
+          .single();
+        fullPaper = fallback.data;
+        error = fallback.error;
+      }
+
+      if (error) throw error;
       
       if (fullPaper) {
         setResult(fullPaper);
@@ -87,6 +130,14 @@ export default function Search({ currentUserId, groupId }) {
     return title.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
   };
 
+  const prepareLookupResult = (paperData) => ({
+    ...paperData,
+    rank: '',
+    rank_source: '',
+    sjr: '',
+    h_index: ''
+  });
+
   const handleSearch = async (searchQuery = query) => {
     if (!searchQuery.trim()) return;
     
@@ -98,7 +149,7 @@ export default function Search({ currentUserId, groupId }) {
     console.log('[Search] Starting search with query:', searchQuery, 'groupId:', groupId);
 
     try {
-      const data = await lookupPaperMetadata(searchQuery);
+      const data = prepareLookupResult(await lookupPaperMetadata(searchQuery));
       setResult(data);
       console.log('[Search] Retrieved metadata:', data);
       
@@ -150,7 +201,31 @@ export default function Search({ currentUserId, groupId }) {
     }
   };
 
-  const handleSaveToLibrary = async (paperData) => {
+  const openSaveDialog = (paperData) => {
+    setSaveDraft(paperData);
+    setManualRank('');
+    setInitialAssignee('');
+  };
+
+  const closeSaveDialog = () => {
+    setSaveDraft(null);
+    setManualRank('');
+    setInitialAssignee('');
+  };
+
+  const normalizeManualRank = (rankValue) => rankValue.trim().toUpperCase();
+
+  const handleSaveToLibrary = async () => {
+    if (!saveDraft) return;
+
+    const paperData = saveDraft;
+    const selectedRank = normalizeManualRank(manualRank);
+
+    if (!selectedRank) {
+      alert('Please enter a rank before saving this paper.');
+      return;
+    }
+
     try {
       // 1. Insert Paper
       const { data: paper, error: paperErr } = await supabase
@@ -171,36 +246,71 @@ export default function Search({ currentUserId, groupId }) {
       if (paperErr) throw paperErr;
 
       // 2. Insert Paper Metadata Cache
-      const quartile = paperData.rank?.startsWith('Q') ? paperData.rank : null;
-      const coreRank = !paperData.rank?.startsWith('Q') ? paperData.rank : null;
+      const quartile = selectedRank.startsWith('Q') ? selectedRank : null;
+      const coreRank = !selectedRank.startsWith('Q') ? selectedRank : null;
 
-      const { error: metaErr } = await supabase
-        .from('paper_meta')
-        .insert({
-          paper_id: paper.id,
-          venue_name: paperData.venue_name,
-          issn: paperData.issn,
-          sjr_rank: paperData.rank,
-          sjr_quartile: quartile,
-          core_rank: coreRank,
-          h_index: paperData.h_index
-        });
+      const baseMetaPayload = {
+        paper_id: paper.id,
+        venue_name: paperData.venue_name,
+        issn: paperData.issn,
+        sjr_rank: selectedRank,
+        sjr_quartile: quartile,
+        core_rank: coreRank,
+        rank_source: 'Manually entered by group member',
+        sjr: null,
+        h_index: null
+      };
+
+      const rankingMetaPayload = {
+        ...baseMetaPayload,
+        citation_count: paperData.citation_count,
+        influential_citation_count: paperData.influential_citation_count,
+        openalex_cited_by_count: paperData.openalex_cited_by_count,
+        fwci: paperData.fwci,
+        impact_score: paperData.impact_score,
+        semantic_scholar_id: paperData.semantic_scholar_id,
+        openalex_id: paperData.openalex_id,
+        author_metrics: paperData.author_metrics,
+        institutions: paperData.institutions
+      };
+
+      let { error: metaErr } = await supabase.from('paper_meta').insert(rankingMetaPayload);
+
+      if (metaErr?.code === '42703') {
+        ({ error: metaErr } = await supabase.from('paper_meta').insert(baseMetaPayload));
+      }
 
       if (metaErr) throw metaErr;
 
-      // 3. Log Activity
+      // 3. Optional initial assignment
+      if (initialAssignee) {
+        const { error: assignErr } = await supabase
+          .from('assignments')
+          .insert({
+            paper_id: paper.id,
+            assigned_to: initialAssignee,
+            assigned_by: currentUserId,
+            status: 'unread'
+          });
+
+        if (assignErr) throw assignErr;
+      }
+
+      // 4. Log Activity
       const { error: logErr } = await supabase
         .from('activity_log')
         .insert({
           group_id: groupId,
           paper_id: paper.id,
           user_id: currentUserId,
-          action: 'added'
+          action: initialAssignee ? 'added_assigned' : 'added',
+          meta: initialAssignee ? { assigned_to: initialAssignee } : {}
         });
 
       if (logErr) throw logErr;
 
       setSaved(true);
+      closeSaveDialog();
       // Fetch full saved paper details to populate added_by, empty claims, assignments structure
       await fetchSavedPaperDetails(paper.id);
 
@@ -273,7 +383,7 @@ export default function Search({ currentUserId, groupId }) {
       <div>
         <h1 style={{ marginBottom: '8px' }}>Paper Metadata Lookup</h1>
         <p style={{ color: 'var(--text-secondary)' }}>
-          Paste a DOI, publisher URL, or search using a paper title. We will query Crossref, Semantic Scholar, and calculate academic ranks in real-time.
+          Paste a DOI, publisher URL, or search using a paper title. We will fetch paper metadata for your portal; rank is entered manually when saving to the library.
         </p>
       </div>
 
@@ -343,7 +453,7 @@ export default function Search({ currentUserId, groupId }) {
       >
         <Info size={16} style={{ color: 'var(--accent-gold)', marginTop: '2px', flexShrink: 0 }} />
         <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Quartiles & Conference Ranks:</span> Journals are graded Q1–Q4 based on Scimago (SJR) data, whereas conference papers are graded A*, A, B, C according to the CORE rankings.
+          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Manual Ranking:</span> Lookup does not auto-rank papers. Add Q1-Q4, A*, A, B, C, or your own label when saving.
         </div>
       </div>
 
@@ -351,7 +461,7 @@ export default function Search({ currentUserId, groupId }) {
       {loading && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', padding: '60px' }}>
           <Loader2 size={40} className="spin" style={{ color: 'var(--accent-gold)' }} />
-          <p className="mono" style={{ color: 'var(--text-secondary)' }}>Querying academic registries and computing ranking quartiles...</p>
+          <p className="mono" style={{ color: 'var(--text-secondary)' }}>Querying paper metadata sources...</p>
         </div>
       )}
 
@@ -388,12 +498,80 @@ export default function Search({ currentUserId, groupId }) {
           <PaperCard 
             paper={result} 
             saved={saved} 
-            onSave={handleSaveToLibrary}
+            onSave={openSaveDialog}
             currentUserId={currentUserId}
             groupMembers={groupMembers}
             onAssign={handleAssign}
             onClaimChange={handleClaimChange}
           />
+        </div>
+      )}
+
+      {saveDraft && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.72)',
+          zIndex: 500,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px'
+        }}>
+          <div className="card" style={{ width: 'min(560px, 100%)', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            <div>
+              <h2 style={{ fontSize: '22px', marginBottom: '6px' }}>Save Paper</h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '14px', lineHeight: 1.5 }}>
+                Add the rank manually and optionally assign the paper now.
+              </p>
+            </div>
+
+            <div>
+              <p className="mono" style={{ color: 'var(--text-muted)', fontSize: '11px', marginBottom: '6px' }}>Paper</p>
+              <p style={{ fontWeight: 800, lineHeight: 1.35 }}>{saveDraft.title}</p>
+              {saveDraft.venue_name && (
+                <p className="mono" style={{ color: 'var(--text-secondary)', fontSize: '12px', marginTop: '4px' }}>{saveDraft.venue_name}</p>
+              )}
+            </div>
+
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span className="mono" style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Rank</span>
+              <input
+                className="input-field"
+                value={manualRank}
+                onChange={(e) => setManualRank(e.target.value)}
+                placeholder="Q1, Q2, Q3, Q4, A*, A, B, C, or custom"
+                autoFocus
+              />
+            </label>
+
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span className="mono" style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Assign to (optional)</span>
+              <select
+                className="input-field"
+                value={initialAssignee}
+                onChange={(e) => setInitialAssignee(e.target.value)}
+              >
+                <option value="">No assignment</option>
+                {groupMembers.map(member => (
+                  <option key={member.user_id} value={member.user_id}>
+                    {member.user_id === currentUserId
+                      ? `${member.fullName || 'You'} (You)`
+                      : member.fullName || member.email || 'Group member'}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '4px' }}>
+              <button className="btn btn-secondary" onClick={closeSaveDialog}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={handleSaveToLibrary}>
+                Save to Library
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
