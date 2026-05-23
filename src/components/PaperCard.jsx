@@ -88,9 +88,14 @@ export default function PaperCard({
         <h3 style={{ fontSize: '20px', lineHeight: '1.4', marginBottom: '8px', fontStyle: 'normal' }}>
           {title}
         </h3>
-        <p className="mono" style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: assigneeNames.length > 0 ? '8px' : '0' }}>
+        <p className="mono" style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
           {authorText}
         </p>
+        {saved && paper.added_by && (
+          <p className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: assigneeNames.length > 0 ? '8px' : '0' }}>
+            Saved by: <span style={{ color: 'var(--accent-gold)' }}>{paper.added_by === currentUserId ? 'You' : (groupMembers.find(m => m.user_id === paper.added_by)?.email || 'Team Scholar')}</span>
+          </p>
+        )}
         {assigneeNames.length > 0 && (
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap', marginTop: '8px' }}>
             <span className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Assigned to:</span>

@@ -17,21 +17,29 @@ export default function Profile({ currentUserId, currentUserEmail, groupId, onNa
       try {
         const { data, error } = await supabase
           .from('group_members')
-          .select('user_id, role')
+          .select('user_id, role, email')
           .eq('group_id', groupId);
 
         if (error) throw error;
 
-        // Generate stable pseudo-emails/nicknames for members
         const formatted = (data || []).map(member => {
+          if (member.email) {
+            const handle = member.email.split('@')[0];
+            const fullName = handle.charAt(0).toUpperCase() + handle.slice(1);
+            return {
+              ...member,
+              email: member.email,
+              fullName
+            };
+          }
           const hash = member.user_id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
           const firstNames = ['Sarah', 'Alex', 'Elena', 'Marcus', 'Clara'];
           const lastNames = ['Chen', 'Smith', 'Vasiliev', 'Adebayo', 'Gomez'];
-          const email = `${firstNames[hash % firstNames.length].toLowerCase()}.${lastNames[hash % lastNames.length].toLowerCase()}@paperhub.edu`;
+          const fallbackEmail = `${firstNames[hash % firstNames.length].toLowerCase()}.${lastNames[hash % lastNames.length].toLowerCase()}@locus.edu`;
           const fullName = `${firstNames[hash % firstNames.length]} ${lastNames[hash % lastNames.length]}`;
           return {
             ...member,
-            email,
+            email: fallbackEmail,
             fullName
           };
         });

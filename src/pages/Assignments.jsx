@@ -38,23 +38,18 @@ export default function Assignments({ currentUserId, groupId, onNavigate }) {
       if (error) throw error;
       setAssignments(data || []);
 
-      // Resolve emails to friendly names
-      const uniqueUserIds = [...new Set([
-        ...data.map(a => a.assigned_to),
-        ...data.map(a => a.assigned_by)
-      ])];
-      
-      const emailsMap = { ...userEmails };
-      uniqueUserIds.forEach(id => {
-        if (!emailsMap[id]) {
-          if (id === currentUserId) {
-            emailsMap[id] = 'You';
-          } else {
-            const firstNames = ['Dr. Sarah', 'Prof. Alex', 'Dr. Elena', 'Dr. Marcus', 'Prof. Clara'];
-            const lastNames = ['Chen', 'Smith', 'Vasiliev', 'Adebayo', 'Gomez'];
-            const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-            emailsMap[id] = `${firstNames[hash % firstNames.length]} ${lastNames[hash % lastNames.length]}`;
-          }
+      // Resolve emails to actual emails from database group_members
+      const { data: membersData } = await supabase
+        .from('group_members')
+        .select('user_id, email')
+        .eq('group_id', groupId);
+
+      const emailsMap = {};
+      (membersData || []).forEach(member => {
+        if (member.user_id === currentUserId) {
+          emailsMap[member.user_id] = 'You';
+        } else {
+          emailsMap[member.user_id] = member.email || 'Team Scholar';
         }
       });
       setUserEmails(emailsMap);
