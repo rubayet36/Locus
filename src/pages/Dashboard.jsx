@@ -308,7 +308,7 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
       ) : (
         <div className="stats-grid">
           {/* Stat 1: Total Saved Papers */}
-          <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '20px', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid var(--card-border)' }}>
+          <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '20px', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid var(--card-border)', minHeight: '110px' }}>
             <div style={{ background: 'rgba(232, 169, 70, 0.1)', border: '1px solid var(--accent-gold)', borderRadius: '12px', padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <FileText size={28} style={{ color: 'var(--accent-gold)' }} />
             </div>
@@ -320,7 +320,7 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
           </div>
 
           {/* Stat 2: Total Read Papers */}
-          <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '20px', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid var(--card-border)' }}>
+          <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '20px', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid var(--card-border)', minHeight: '110px' }}>
             <div style={{ background: 'rgba(74, 222, 128, 0.1)', border: '1px solid #4ade80', borderRadius: '12px', padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <BookOpen size={28} style={{ color: '#4ade80' }} />
             </div>
@@ -332,7 +332,7 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
           </div>
 
           {/* Stat 3: Scholar Contributions list */}
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid var(--card-border)', justifySelf: 'stretch' }}>
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid var(--card-border)', justifySelf: 'stretch', minHeight: '110px' }}>
             <span className="mono" style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Award size={14} style={{ color: 'var(--accent-gold)' }} /> Scholar Achievements
             </span>
@@ -410,7 +410,7 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
                   }}>
                     {getActivityIcon(act.action)}
                   </div>
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: '16px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
                       {renderActivityText(act)}
                     </p>
@@ -469,7 +469,7 @@ export default function Dashboard({ currentUserId, groupId, onNavigate }) {
                         whiteSpace: 'nowrap', 
                         overflow: 'hidden' 
                       }}>
-                        <span style={{ color: 'var(--accent-gold)' }}>{claim.readerName}</span> is reading <span style={{ color: 'var(--text-primary)', fontWeight: '500' }}>"{claim.title}"</span>
+                        <span style={{ color: 'var(--accent-gold)' }}>{claim.readerName}</span> {claim.readerName === 'You' ? 'are' : 'is'} reading <span style={{ color: 'var(--text-primary)', fontWeight: '500' }}>"{claim.title}"</span>
                       </p>
                     </div>
                     <span className="rank-badge" style={{ backgroundColor: '#0d1a3a', borderColor: '#60a5fa', color: '#93c5fd', fontSize: '9px', padding: '2px 6px' }}>

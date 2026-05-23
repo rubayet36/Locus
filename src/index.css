@@ -29,6 +29,11 @@
   padding: 0;
 }
 
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
 body {
   background-color: var(--bg-page);
   background-image: var(--bg-gradient);
@@ -84,6 +89,8 @@ a:hover {
   display: flex;
   min-height: 100vh;
   position: relative;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 .main-content {
@@ -605,6 +612,13 @@ a:hover {
   
   .search-bar-row button {
     width: 100% !important;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+    width: 100% !important;
+    overflow-x: hidden !important;
   }
 
   .responsive-grid {
