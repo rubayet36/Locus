@@ -33,7 +33,8 @@ export default function Assignments({ currentUserId, groupId, onNavigate }) {
               core_rank
             )
           )
-        `);
+        `)
+        .eq('assigned_to', currentUserId);
 
       if (error) throw error;
       setAssignments(data || []);

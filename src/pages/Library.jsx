@@ -48,21 +48,22 @@ export default function Library({ currentUserId, groupId, onNavigate }) {
       // 2. Fetch group members for assignments
       const { data: membersData, error: membersErr } = await supabase
         .from('group_members')
-        .select('user_id, role')
+        .select('user_id, role, email')
         .eq('group_id', groupId);
 
       if (membersErr) throw membersErr;
       
-      // Since supabase authentication doesn't easily expose user emails without triggers or admin rights,
-      // we generate friendly academic names/emails for other users
       const formattedMembers = (membersData || []).map(member => {
+        if (member.email) {
+          return member; // Use actual email stored in group_members!
+        }
         const hash = member.user_id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
         const firstNames = ['Sarah', 'Alex', 'Elena', 'Marcus', 'Clara'];
         const lastNames = ['Chen', 'Smith', 'Vasiliev', 'Adebayo', 'Gomez'];
-        const email = `${firstNames[hash % firstNames.length].toLowerCase()}.${lastNames[hash % lastNames.length].toLowerCase()}@paperhub.edu`;
+        const fallbackEmail = `${firstNames[hash % firstNames.length].toLowerCase()}.${lastNames[hash % lastNames.length].toLowerCase()}@locus.edu`;
         return {
           ...member,
-          email
+          email: fallbackEmail
         };
       });
       
@@ -266,25 +267,27 @@ export default function Library({ currentUserId, groupId, onNavigate }) {
                 />
               </div>
               
-              {/* Optional Delete Button at the very top right corner of the paper wrapper */}
-              <button 
-                onClick={() => handleDeletePaper(paper.id)}
-                className="btn btn-text"
-                style={{ 
-                  position: 'absolute', 
-                  top: '16px', 
-                  right: '16px', 
-                  color: '#ef4444', 
-                  opacity: 0.5,
-                  padding: '4px',
-                  zIndex: 10
-                }}
-                onMouseOver={(e) => e.currentTarget.style.opacity = 1}
-                onMouseOut={(e) => e.currentTarget.style.opacity = 0.5}
-                title="Remove Paper"
-              >
-                <Trash2 size={16} />
-              </button>
+              {/* Optional Delete Button at the very top right corner of the paper wrapper (Only for the user who saved the paper) */}
+              {paper.added_by === currentUserId && (
+                <button 
+                  onClick={() => handleDeletePaper(paper.id)}
+                  className="btn btn-text"
+                  style={{ 
+                    position: 'absolute', 
+                    top: '16px', 
+                    right: '16px', 
+                    color: '#ef4444', 
+                    opacity: 0.5,
+                    padding: '4px',
+                    zIndex: 10
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.opacity = 1}
+                  onMouseOut={(e) => e.currentTarget.style.opacity = 0.5}
+                  title="Remove Paper"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
             </div>
           ))}
         </div>
